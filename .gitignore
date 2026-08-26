@@ -1,0 +1,13 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Embedded/cloned Git metadata is not tracked as a submodule
+meanflow/.git/
+
+# Local editor/OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
