@@ -67,17 +67,11 @@ class Stage2Config:
     weight_decay: float = 0.0
     gamma_refresh: int = 50
     batch_refresh: int = 400
-    # Algorithm 2: L = <C, gamma> + lambda * mean(||f(x)-x||^2).
-    # The previous defaults (ot 0.15, hist 1.0, residual 0.25) are not the paper.
-    # The blurred 36-bin Sinkhorn term saturates near 0.05 even for a perfect
-    # cloud, and residual 0.25 cancels the gain from a 0.1 rad correction, so
-    # the corrector stops after moving ~0.09. Histogram matching stays available
-    # via --hist-weight but is off by default.
-    residual_weight: float = 1e-3
+    residual_weight: float = 0.25
     residual_reduction: str = "mean"
     residual_free_radius: float = 0.12
-    ot_weight: float = 1.0
-    hist_weight: float = 0.0
+    ot_weight: float = 0.15
+    hist_weight: float = 1.0
     hist_bins: int = 36
     hist_blur: float = 0.6
     hist_dims: tuple = (0, 1)
