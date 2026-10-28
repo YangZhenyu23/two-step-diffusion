@@ -35,7 +35,16 @@ def evaluate_run(run: str, levels, device, n=20000, seed=666):
     ckpt = run_dir / "stage1_final.pt"
     if not ckpt.exists():
         raise FileNotFoundError(ckpt)
-    model = load_model(MFMLP(dim=2), ckpt, device)
+    # Read the backbone shape from the run's own config so capacity experiments
+    # (wider/deeper nets) can be compared with the 64/5 baseline.
+    backbone = {}
+    cfg_path = run_dir / "config.json"
+    if cfg_path.exists():
+        stage1_cfg = json.loads(cfg_path.read_text(encoding="utf-8")).get("stage1", {})
+        for key in ("width", "depth", "n_frequencies"):
+            if key in stage1_cfg:
+                backbone[key] = stage1_cfg[key]
+    model = load_model(MFMLP(dim=2, **backbone), ckpt, device)
     model.eval()
     out = []
     for l2s in levels:
