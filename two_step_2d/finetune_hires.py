@@ -28,13 +28,18 @@ def log_sinkhorn(a: torch.Tensor, b: torch.Tensor, cost: torch.Tensor, eps: floa
     a = a / a.sum()
     b = b / b.sum()
     log_a = torch.log(a.clamp_min(1e-12))
-    log_b = torch.log(b.clamp_min(1e-12))
+    log_b = torch.log(b.detach().clamp_min(1e-12))
     f = torch.zeros_like(log_a)
     g = torch.zeros_like(log_b)
-    for _ in range(n_iter):
-        f = eps * (log_a - torch.logsumexp((-cost + g.unsqueeze(0)) / eps, dim=1))
-        g = eps * (log_b - torch.logsumexp((-cost + f.unsqueeze(1)) / eps, dim=0))
-    return (f * a).sum() + (g * b).sum()
+    # Potentials are solved to convergence, then detached. The envelope theorem
+    # says the derivative of the dual in the histogram is the potential itself,
+    # so backpropagating through all 40 kernel iterations is unnecessary and
+    # materializes a 72^2 by 72^2 graph.
+    with torch.no_grad():
+        for _ in range(n_iter):
+            f = eps * (log_a - torch.logsumexp((-cost + g.unsqueeze(0)) / eps, dim=1))
+            g = eps * (log_b - torch.logsumexp((-cost + f.unsqueeze(1)) / eps, dim=0))
+    return (f.detach() * a).sum()
 
 
 def predict(mf, dp, eps: torch.Tensor, level: float) -> torch.Tensor:
@@ -133,6 +138,8 @@ def main() -> None:
         loss.backward()
         torch.nn.utils.clip_grad_norm_(trainable.parameters(), 1.0)
         opt.step()
+        if (step + 1) % 100 == 0:
+            print(f"step {step+1} sinkhorn={float(loss.detach()):.5f}", flush=True)
         if (step + 1) % args.probe_every == 0 or step + 1 == args.steps:
             held = score()
             flag = ""
