@@ -69,6 +69,8 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         cfg.stage1.lr = float(args.stage1_lr)
     if getattr(args, "stage1_steps", None) is not None:
         cfg.stage1.steps = int(args.stage1_steps)
+    if getattr(args, "endpoint_weight", None) is not None:
+        cfg.stage1.endpoint_weight = float(args.endpoint_weight)
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -151,4 +153,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--stage1-lr", default=None, help="override Stage I learning rate")
     parser.add_argument("--stage1-steps", default=None, help="override Stage I step count")
+    parser.add_argument(
+        "--endpoint-weight",
+        default=None,
+        help="weight on the explicit u(eps,0,1) endpoint term (0 = historical default)",
+    )
     return parser

@@ -162,6 +162,19 @@ def train_stage1(
         u_tgt = (v - (t_ - r_) * u_dot).detach()
         loss = torch.mean((u - u_tgt) ** 2)
 
+        # Endpoint term. Sampling only ever queries u(eps, 0, 1, sigma), but the
+        # identity loss above is dominated by interior (r, t) pairs: with
+        # logit-normal times and r=t on half the batch, the exact (0,1) query is
+        # rare. Without this term the model can reach a low identity loss while
+        # its endpoint map is still off by ~0.12 rad (measured on the
+        # probe_global_l3 run, train loss 0.0021).
+        endpoint_weight = float(getattr(s1, "endpoint_weight", 0.0))
+        if endpoint_weight > 0.0:
+            zeros = torch.zeros_like(sigma_b)
+            ones = torch.ones_like(sigma_b)
+            u_end = model(eps_b, zeros, ones, sigma_b)
+            loss = loss + endpoint_weight * torch.mean((u_end - v) ** 2)
+
         optimizer.zero_grad()
         loss.backward()
         if grad_clip > 0:

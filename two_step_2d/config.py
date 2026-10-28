@@ -40,6 +40,9 @@ class Stage1Config:
     pair_mode: str = "ot_periodic"
     geodesic_path: bool = True
     device: str = "cuda"
+    # Weight on the explicit endpoint term ||u(eps,0,1,sigma) - (eps - x0)||^2.
+    # 0.0 reproduces the historical runs exactly.
+    endpoint_weight: float = 0.0
 
 
 @dataclass
