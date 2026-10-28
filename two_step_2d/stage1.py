@@ -55,15 +55,28 @@ def adaptive_mean_squared_error(
     epsilon: float = 1e-3,
     weight_min: float = 0.25,
     weight_max: float = 4.0,
+    sample_mask: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """Normalized, clipped adaptive per-particle MSE from the KS example.
+    """Normalized, clipped adaptive per-particle MSE.
 
-    Leftover from a failed Stage I attempt: adaptive MSE + cosine scheduler
-    raised 2D MeanFlow W2 and was rolled back. `train_stage1` uses ordinary
-    `mean((u - u_tgt)**2)` and does not call this function. Do not wire it
-    back in without a new ablation.
+    This is the "adaptive weighting" the paper credits in Sec. 3.3 for making
+    the JVP residual well-conditioned, and it is what the KS reference
+    implementation (example/meanflow.py) uses.
+
+    History: it was previously tried with independent (unpaired) sampling and
+    raised W2, so it was left unwired. That negative result does not transfer:
+    with independent pairing the velocity scale |v| is large and the weights
+    amplify outliers. Re-test it under geodesic OT pairing.
+
+    ``sample_mask`` selects the diagonal (r=t) part of the batch; the paper's
+    loss balances the r=t and r<t halves by averaging the two group losses, so
+    the small |t-r| regime does not dominate.
     """
     per_particle_mse = error.square().mean(dim=-1)
+    if sample_mask is not None:
+        per_particle_mse = per_particle_mse[sample_mask.bool()]
+    if per_particle_mse.numel() == 0:
+        return error.new_zeros(())
     weight = (per_particle_mse.detach() + epsilon).pow(-power)
     weight = (weight / weight.mean().clamp_min(torch.finfo(weight.dtype).eps)).clamp(
         weight_min, weight_max
@@ -71,6 +84,34 @@ def adaptive_mean_squared_error(
     return (weight * per_particle_mse).sum() / weight.sum().clamp_min(
         torch.finfo(weight.dtype).eps
     )
+
+
+def meanflow_loss(
+    error: torch.Tensor,
+    diagonal: Optional[torch.Tensor],
+    power: float,
+    epsilon: float,
+    weight_min: float,
+    weight_max: float,
+) -> torch.Tensor:
+    """MeanFlow regression loss, optionally adaptive and time-balanced.
+
+    ``power == 0`` reduces to the plain mean squared error used by every run in
+    this repo before now.
+    """
+    if power <= 0.0:
+        return torch.mean(error**2)
+    if diagonal is None or not diagonal.any() or diagonal.all():
+        return adaptive_mean_squared_error(
+            error, power, epsilon, weight_min, weight_max
+        )
+    diag = adaptive_mean_squared_error(
+        error, power, epsilon, weight_min, weight_max, diagonal
+    )
+    off = adaptive_mean_squared_error(
+        error, power, epsilon, weight_min, weight_max, ~diagonal.bool()
+    )
+    return 0.5 * (diag + off)
 
 
 def save_model(model: MFMLP, path: Path) -> None:
@@ -160,7 +201,18 @@ def train_stage1(
 
         u, u_dot = model.jvp_u(z, r, t, sigma_b, v)
         u_tgt = (v - (t_ - r_) * u_dot).detach()
-        loss = torch.mean((u - u_tgt) ** 2)
+        # Adaptive weighting is what the paper credits for a well-conditioned
+        # JVP residual; adaptive_power=0 recovers the historical plain MSE.
+        adaptive_power = float(getattr(s1, "adaptive_power", 0.0))
+        diagonal = (r == t)
+        loss = meanflow_loss(
+            u - u_tgt,
+            diagonal if adaptive_power > 0 else None,
+            adaptive_power,
+            float(getattr(s1, "adaptive_epsilon", 1e-3)),
+            float(getattr(s1, "adaptive_weight_min", 0.25)),
+            float(getattr(s1, "adaptive_weight_max", 4.0)),
+        )
 
         # Endpoint term. Sampling only ever queries u(eps, 0, 1, sigma), but the
         # identity loss above is dominated by interior (r, t) pairs: with

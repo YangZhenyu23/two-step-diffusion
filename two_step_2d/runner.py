@@ -88,6 +88,8 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         cfg.stage2.gamma_refresh = int(args.gamma_refresh)
     if getattr(args, "batch_refresh", None) is not None:
         cfg.stage2.batch_refresh = int(args.batch_refresh)
+    if getattr(args, "adaptive_power", None) is not None:
+        cfg.stage1.adaptive_power = float(args.adaptive_power)
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -190,8 +192,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="re-solve the OT coupling every N steps (large N = stationary objective)",
     )
     parser.add_argument(
-        "--batch-refresh",
+        "--adaptive-power",
         default=None,
-        help="redraw the DP mini-batch every N steps",
+        help="adaptive per-particle weighting exponent (paper uses 0.25; 0 = plain MSE)",
     )
     return parser

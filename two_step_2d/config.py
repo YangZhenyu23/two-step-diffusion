@@ -43,6 +43,13 @@ class Stage1Config:
     # Weight on the explicit endpoint term ||u(eps,0,1,sigma) - (eps - x0)||^2.
     # 0.0 reproduces the historical runs exactly.
     endpoint_weight: float = 0.0
+    # Adaptive per-particle weighting of the MeanFlow residual (paper Sec 3.3
+    # credits this for a well-conditioned JVP target). 0.0 = plain MSE, which
+    # is what every pre-existing run used.
+    adaptive_power: float = 0.0
+    adaptive_epsilon: float = 1e-3
+    adaptive_weight_min: float = 0.25
+    adaptive_weight_max: float = 4.0
 
 
 @dataclass
