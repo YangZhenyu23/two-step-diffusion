@@ -40,6 +40,13 @@ class Stage1Config:
     pair_mode: str = "ot_periodic"
     geodesic_path: bool = True
     device: str = "cuda"
+    # MeanFlow backbone. Paper states width 64 / depth 5, which is the default.
+    # These are exposed because the 8-level grid is capacity-bound: a single
+    # level reaches 0.0784 debiased while 3+ levels plateau at ~0.0935, i.e. the
+    # shared network cannot represent 8 different invariant measures at once.
+    width: int = 64
+    depth: int = 5
+    n_frequencies: int = 4
     # Weight on the explicit endpoint term ||u(eps,0,1,sigma) - (eps - x0)||^2.
     # 0.0 reproduces the historical runs exactly.
     endpoint_weight: float = 0.0

@@ -90,6 +90,12 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         cfg.stage2.batch_refresh = int(args.batch_refresh)
     if getattr(args, "adaptive_power", None) is not None:
         cfg.stage1.adaptive_power = float(args.adaptive_power)
+    if getattr(args, "mf_width", None) is not None:
+        cfg.stage1.width = int(args.mf_width)
+    if getattr(args, "mf_depth", None) is not None:
+        cfg.stage1.depth = int(args.mf_depth)
+    if getattr(args, "mf_frequencies", None) is not None:
+        cfg.stage1.n_frequencies = int(args.mf_frequencies)
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -97,7 +103,12 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
     )
 
     dim = 2 if exp == "kpp2d" else 3
-    stage1_model = MFMLP(dim=dim)
+    stage1_model = MFMLP(
+        dim=dim,
+        width=getattr(cfg.stage1, "width", 64),
+        depth=getattr(cfg.stage1, "depth", 5),
+        n_frequencies=getattr(cfg.stage1, "n_frequencies", 4),
+    )
     dp_model = DPResNet(
         dim=dim,
         depth=cfg.stage2.depth,
@@ -195,5 +206,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--adaptive-power",
         default=None,
         help="adaptive per-particle weighting exponent (paper uses 0.25; 0 = plain MSE)",
+    )
+    parser.add_argument("--mf-width", default=None, help="Stage I MLP width (paper: 64)")
+    parser.add_argument("--mf-depth", default=None, help="Stage I MLP depth (paper: 5)")
+    parser.add_argument(
+        "--mf-frequencies", default=None, help="Fourier features for (r,t,sigma) (paper: compact)"
     )
     return parser
