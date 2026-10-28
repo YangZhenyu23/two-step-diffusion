@@ -71,6 +71,17 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         cfg.stage1.steps = int(args.stage1_steps)
     if getattr(args, "endpoint_weight", None) is not None:
         cfg.stage1.endpoint_weight = float(args.endpoint_weight)
+    # Stage II weights. The ORACLE experiment showed the 36-bin histogram term
+    # sits on a plateau (a perfect cloud still scores ~0.054 of its 0.063
+    # starting value), so its 1.0 weight drowns the EMD signal at 0.15.
+    for flag, attr in (
+        ("hist_weight", "hist_weight"),
+        ("residual_weight", "residual_weight"),
+        ("ot_weight", "ot_weight"),
+    ):
+        val = getattr(args, flag, None)
+        if val is not None:
+            setattr(cfg.stage2, attr, float(val))
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -158,4 +169,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="weight on the explicit u(eps,0,1) endpoint term (0 = historical default)",
     )
+    parser.add_argument("--hist-weight", default=None, help="Stage II histogram term weight")
+    parser.add_argument("--residual-weight", default=None, help="Stage II residual penalty")
+    parser.add_argument("--ot-weight", default=None, help="Stage II mini-batch EMD weight")
     return parser

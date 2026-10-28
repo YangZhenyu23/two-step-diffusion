@@ -182,9 +182,32 @@ def train_stage2(
             best_score = mean_w2
             best_state = {k: v.detach().cpu().clone() for k, v in dp_model.state_dict().items()}
             torch.save(best_state, run_dir / "stage2_best.pt")
+            print(f"stage2 new best at step {step_num}: {mean_w2:.4f}", flush=True)
 
     run_dir.mkdir(parents=True, exist_ok=True)
-    maybe_probe(0)
+    # Baseline score of the untrained (identity) corrector. It is recorded for
+    # reference but must NOT be eligible to win: the head is zero-initialized, so
+    # at step 0 the map is exactly the identity, and any honest refinement is
+    # judged against it. Letting step 0 compete means the run can end having
+    # selected the untrained weights -- which is what happened in
+    # full_2d_v3_dp_a (best_probe_w2 == probe at step 0, stage2_final.pt had an
+    # all-zero head and moved particles by exactly 0.000 rad).
+    identity_score = None
+    if probe_every > 0:
+        mean_w2, _ = _probe_w2(
+            cfg, stage1_model, dp_model, device, probe_levels, probe_n
+        )
+        identity_score = mean_w2
+        probe_log.append(
+            {
+                "step": 0,
+                "mean_w2": mean_w2,
+                "levels": probe_levels,
+                "w2": _,
+                "note": "untrained identity baseline; not eligible for selection",
+            }
+        )
+        print(f"stage2 identity baseline mean_w2={mean_w2:.4f}", flush=True)
 
     for step in tqdm(range(s2.steps), desc="stage2-dp"):
         if src_idx is None or step % s2.batch_refresh == 0:
@@ -272,7 +295,18 @@ def train_stage2(
         if probe_every > 0 and ((step + 1) % probe_every == 0 or step + 1 == s2.steps):
             maybe_probe(step + 1)
 
-    dp_model.load_state_dict(best_state)
+    if best_score == float("inf"):
+        # Nothing ever beat the identity baseline. Keeping `best_state` (which
+        # is still the zero-initialized snapshot) would silently ship a no-op
+        # corrector, so say so loudly and fall back to the last weights.
+        print(
+            "stage2 WARNING: no checkpoint beat the identity baseline "
+            f"({identity_score}); saving last weights instead. DP did not improve.",
+            flush=True,
+        )
+        best_state = {k: v.detach().cpu().clone() for k, v in dp_model.state_dict().items()}
+    else:
+        dp_model.load_state_dict(best_state)
     torch.save(dp_model.state_dict(), run_dir / "stage2_final.pt")
     (run_dir / "stage2_loss.json").write_text(
         json.dumps(
@@ -284,6 +318,8 @@ def train_stage2(
                 "total": total_log,
                 "probe": probe_log,
                 "best_probe_w2": best_score,
+                "identity_baseline_w2": identity_score,
+                "beat_identity": bool(best_score < float("inf")),
                 "residual_reduction": reduction,
             },
             ensure_ascii=False,
