@@ -127,9 +127,17 @@ def ot_pair_periodic(
     if chunk is None:
         import ot
 
-        diff = ref[None, :, :] - eps[:, None, :]
-        diff = diff - TWO_PI * np.round(diff / TWO_PI)
-        cost = np.sum(diff * diff, axis=-1)
+        # Build the (n, n) cost matrix in row blocks. A naive
+        # ref[None,:,:] - eps[:,None,:] allocates (n, n, d) float64, which is
+        # 6 GiB at n=20000 and fails on a 32 GB machine under any other load.
+        cost = np.empty((n, n), dtype=np.float64)
+        block = max(1, 4_000_000 // max(n, 1))
+        for start in range(0, n, block):
+            sl = slice(start, min(start + block, n))
+            diff = ref[None, :, :] - eps[sl, None, :]
+            diff -= TWO_PI * np.round(diff / TWO_PI)
+            cost[sl] = np.einsum("ijk,ijk->ij", diff, diff)
+            del diff
         a = np.ones(n, dtype=np.float64) / n
         plan = ot.emd(a, a, cost, numItermax=50_000_000)
         # The optimal plan between two uniform empirical measures is a scaled
