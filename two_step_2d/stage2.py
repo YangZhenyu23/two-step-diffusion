@@ -321,7 +321,9 @@ def train_stage2(
                 "probe": probe_log,
                 "best_probe_w2": best_score,
                 "identity_baseline_w2": identity_score,
-                "beat_identity": bool(best_score < float("inf")),
+                "beat_identity": bool(
+                    identity_score is not None and best_score < identity_score
+                ),
                 "residual_reduction": reduction,
             },
             ensure_ascii=False,
