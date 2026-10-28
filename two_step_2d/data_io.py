@@ -109,6 +109,11 @@ def ot_pair_periodic(
     Chunk 500 keeps Hungarian assignment under a few seconds. A 2000-point
     solve is cubic and stalled training startup. Stage I rebuilds this table
     every pair_refresh steps so the Gaussian source is not frozen.
+
+    ``chunk=None`` runs one global assignment over the whole cloud. This is the
+    only setting whose target is independent of an arbitrary partition, so it is
+    the one used for the reproduction runs; the chunked mode is kept for the
+    historical comparison experiments.
     """
     from scipy.optimize import linear_sum_assignment
 
@@ -118,6 +123,21 @@ def ot_pair_periodic(
     if rng is not None:
         rng.shuffle(ref)
     out = np.empty_like(ref)
+
+    if chunk is None:
+        import ot
+
+        diff = ref[None, :, :] - eps[:, None, :]
+        diff = diff - TWO_PI * np.round(diff / TWO_PI)
+        cost = np.sum(diff * diff, axis=-1)
+        a = np.ones(n, dtype=np.float64) / n
+        plan = ot.emd(a, a, cost, numItermax=50_000_000)
+        # The optimal plan between two uniform empirical measures is a scaled
+        # permutation; argmax recovers the assignment without an O(n^3) solve.
+        col = plan.argmax(axis=1)
+        out[:] = ref[col]
+        return out.astype(np.float32)
+
     n_chunks = (n + chunk - 1) // chunk
     for i, start in enumerate(range(0, n, chunk)):
         sl = slice(start, min(start + chunk, n))
@@ -146,6 +166,12 @@ def build_stage1_arrays(
     pair_mode:
         independent — random unmatched (eps, x_ref); high-variance velocity.
         ot_periodic — chunked periodic assignment (default for 2D KPP).
+        ot_global   — one global periodic assignment over the whole cloud.
+
+    The target of ``ot_periodic`` depends on which points share a chunk, so the
+    regression label is a random variable for every fixed eps (measured spread
+    ~0.22 rad with chunk=500). ``ot_global`` removes that dependence and is what
+    the reproduction runs should use.
     """
     rng = np.random.default_rng(seed)
     eps_parts = []
@@ -159,9 +185,14 @@ def build_stage1_arrays(
         idx = rng.choice(n, size=count, replace=False)
         x_ref = x_ref[idx]
         eps = rng.normal(0.0, prior_std, size=(count, d)).astype(np.float32)
-        if pair_mode == "ot_periodic":
-            print(f"ot-pair 2D log2sigma={l2s} n={count}", flush=True)
-            x_ref = ot_pair_periodic(eps, x_ref, rng=rng)
+        if pair_mode in ("ot_periodic", "ot_global"):
+            chunk = None if pair_mode == "ot_global" else 500
+            print(
+                f"ot-pair {exp} log2sigma={l2s} n={count} "
+                f"mode={pair_mode}",
+                flush=True,
+            )
+            x_ref = ot_pair_periodic(eps, x_ref, chunk=chunk, rng=rng)
         elif pair_mode != "independent":
             raise ValueError(f"unknown pair_mode {pair_mode!r}")
         eps_parts.append(eps)
