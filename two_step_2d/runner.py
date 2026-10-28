@@ -84,6 +84,10 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
             setattr(cfg.stage2, attr, float(val))
     if getattr(args, "displacement_cap", None) is not None:
         cfg.stage2.displacement_cap = float(args.displacement_cap)
+    if getattr(args, "gamma_refresh", None) is not None:
+        cfg.stage2.gamma_refresh = int(args.gamma_refresh)
+    if getattr(args, "batch_refresh", None) is not None:
+        cfg.stage2.batch_refresh = int(args.batch_refresh)
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -179,5 +183,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--displacement-cap",
         default=None,
         help="hard bound on |f(x)-x| in radians for the DP corrector (None = unbounded)",
+    )
+    parser.add_argument(
+        "--gamma-refresh",
+        default=None,
+        help="re-solve the OT coupling every N steps (large N = stationary objective)",
+    )
+    parser.add_argument(
+        "--batch-refresh",
+        default=None,
+        help="redraw the DP mini-batch every N steps",
     )
     return parser
