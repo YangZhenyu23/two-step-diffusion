@@ -1,0 +1,30 @@
+{
+  "reference": "KPP data/data/kpp2d_hires, GPU FK, M=200000, T=4096, seed=666",
+  "models": {
+    "meanflow": "two_step_2d/runs/kpp2d/w2_ft_mf8/mf_l-3.0_best.pt",
+    "deepparticle": "two_step_2d/runs/kpp2d/w2_ft_dp8/dp_l-3.0_best.pt"
+  },
+  "eval": "100000 model particles vs first 100000 reference particles; floor is the two reference halves",
+  "levels": {
+    "-3.0": {
+      "c_hat": 1.025,
+      "floor_bins72": 0.0392,
+      "floor_bins144": 0.0305,
+      "mf_bins72": 0.0582,
+      "dp_bins72": 0.0587,
+      "mf_bins144": 0.0473,
+      "dp_bins144": 0.0474,
+      "paper_mf": 0.0639,
+      "paper_dp": 0.0106
+    },
+    "-4.5": {
+      "c_hat": 0.7843,
+      "floor_bins72": 0.04,
+      "floor_bins144": 0.0306,
+      "mf_bins72": 0.1728,
+      "dp_bins72": 0.1665,
+      "paper_mf": 0.1176,
+      "paper_dp": 0.0456
+    }
+  }
+}
