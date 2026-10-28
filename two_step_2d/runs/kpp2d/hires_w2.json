@@ -21,6 +21,14 @@
         "25000": {"floor": 0.0591, "mf": 0.0684, "dp": 0.0687},
         "50000": {"floor": 0.0454, "mf": 0.0617, "dp": 0.0617},
         "100000": {"floor": 0.0392, "mf": 0.0582, "dp": 0.0587}
+      },
+      "hires_finetune": {
+        "checkpoint": "two_step_2d/runs/kpp2d/w2_ft_hires/mf_best.pt",
+        "probe_n20000_vs_holdout40000": {"step0": 0.0687, "best": 0.0600, "floor": 0.0623},
+        "bins72": {
+          "50000": {"floor": 0.0454, "before": 0.0617, "after": 0.0511},
+          "100000": {"floor": 0.0392, "before": 0.0582, "after": 0.0461}
+        }
       }
     },
     "-4.5": {
