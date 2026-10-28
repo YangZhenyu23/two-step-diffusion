@@ -69,6 +69,8 @@ class Stage2Config:
     alpha: float = 0.2
     depth: int = 6
     wrap_output: bool = False
+    # Hard bound on |f(x)-x|. None keeps the historical unbounded head.
+    displacement_cap: Optional[float] = None
     ckpt_every: int = 2000
     probe_every: int = 2000
     probe_samples: int = 4000

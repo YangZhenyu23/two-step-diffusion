@@ -82,6 +82,8 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         val = getattr(args, flag, None)
         if val is not None:
             setattr(cfg.stage2, attr, float(val))
+    if getattr(args, "displacement_cap", None) is not None:
+        cfg.stage2.displacement_cap = float(args.displacement_cap)
     # Persist the effective config after CLI overrides so a run can always be
     # reproduced from its own config.json.
     (run_dir / "config.json").write_text(
@@ -95,6 +97,7 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         depth=cfg.stage2.depth,
         alpha=cfg.stage2.alpha,
         wrap_output=cfg.stage2.wrap_output,
+        displacement_cap=getattr(cfg.stage2, "displacement_cap", None),
     )
 
     if mode in ("train-stage1", "all", "smoke"):
@@ -172,4 +175,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hist-weight", default=None, help="Stage II histogram term weight")
     parser.add_argument("--residual-weight", default=None, help="Stage II residual penalty")
     parser.add_argument("--ot-weight", default=None, help="Stage II mini-batch EMD weight")
+    parser.add_argument(
+        "--displacement-cap",
+        default=None,
+        help="hard bound on |f(x)-x| in radians for the DP corrector (None = unbounded)",
+    )
     return parser
