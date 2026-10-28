@@ -1,0 +1,25 @@
+{
+  "metric": "exact EMD on 72x72 periodic histogram, fresh N(0, pi) eps, seed 666, n=20000",
+  "meanflow_ckpt": "two_step_2d/runs/kpp2d/w2_ft_mf8/mf_l-3.0_best.pt",
+  "paper_mean_mf": 0.0769,
+  "levels": [
+    {"log2sigma": -2.0, "w2_mf": 0.0707, "paper_mf": 0.0477},
+    {"log2sigma": -2.25, "w2_mf": 0.0679, "paper_mf": 0.0476},
+    {"log2sigma": -2.5, "w2_mf": 0.0653, "paper_mf": 0.0532},
+    {"log2sigma": -2.75, "w2_mf": 0.0712, "paper_mf": 0.0592},
+    {"log2sigma": -3.0, "w2_mf": 0.0702, "paper_mf": 0.0639},
+    {"log2sigma": -3.25, "w2_mf": 0.0711, "paper_mf": 0.0717},
+    {"log2sigma": -3.5, "w2_mf": 0.0711, "paper_mf": 0.0870},
+    {"log2sigma": -3.75, "w2_mf": 0.0797, "paper_mf": 0.0773},
+    {"log2sigma": -4.0, "w2_mf": 0.1045, "paper_mf": 0.1012},
+    {"log2sigma": -4.25, "w2_mf": 0.1466, "paper_mf": 0.1195},
+    {"log2sigma": -4.5, "w2_mf": 0.1729, "paper_mf": 0.1176}
+  ],
+  "mean_w2_mf": 0.0901,
+  "dp_on_four_levels": [
+    {"log2sigma": -2.0, "w2_mf": 0.0707, "w2_dp": 0.0686},
+    {"log2sigma": -3.0, "w2_mf": 0.0702, "w2_dp": 0.0686},
+    {"log2sigma": -3.75, "w2_mf": 0.0797, "w2_dp": 0.0735},
+    {"log2sigma": -4.5, "w2_mf": 0.1729, "w2_dp": 0.1667}
+  ]
+}
