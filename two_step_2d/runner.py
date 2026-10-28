@@ -63,6 +63,18 @@ def run(exp: str, mode: str, args: argparse.Namespace) -> Path:
         json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
+    if getattr(args, "pair_mode", None):
+        cfg.stage1.pair_mode = args.pair_mode
+    if getattr(args, "stage1_lr", None) is not None:
+        cfg.stage1.lr = float(args.stage1_lr)
+    if getattr(args, "stage1_steps", None) is not None:
+        cfg.stage1.steps = int(args.stage1_steps)
+    # Persist the effective config after CLI overrides so a run can always be
+    # reproduced from its own config.json.
+    (run_dir / "config.json").write_text(
+        json.dumps(cfg.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
     dim = 2 if exp == "kpp2d" else 3
     stage1_model = MFMLP(dim=dim)
     dp_model = DPResNet(
@@ -131,4 +143,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--eval-levels", default=None, help="comma-separated eval sigma")
     parser.add_argument("--run-name", default=None)
     parser.add_argument("--device", default=None, help="cuda or cpu")
+    parser.add_argument(
+        "--pair-mode",
+        default=None,
+        choices=["independent", "ot_periodic", "ot_global"],
+        help="Stage I pairing. ot_global = one global assignment, no chunk noise.",
+    )
+    parser.add_argument("--stage1-lr", default=None, help="override Stage I learning rate")
+    parser.add_argument("--stage1-steps", default=None, help="override Stage I step count")
     return parser
