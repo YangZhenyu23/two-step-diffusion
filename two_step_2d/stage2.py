@@ -198,6 +198,10 @@ def train_stage2(
             cfg, stage1_model, dp_model, device, probe_levels, probe_n
         )
         identity_score = mean_w2
+        # Only a probe that beats the untrained map is allowed to become the
+        # saved model. best_score used to start at +inf, so the least-bad
+        # trained checkpoint was kept even when it was worse than the identity.
+        best_score = identity_score
         probe_log.append(
             {
                 "step": 0,
@@ -295,18 +299,16 @@ def train_stage2(
         if probe_every > 0 and ((step + 1) % probe_every == 0 or step + 1 == s2.steps):
             maybe_probe(step + 1)
 
-    if best_score == float("inf"):
-        # Nothing ever beat the identity baseline. Keeping `best_state` (which
-        # is still the zero-initialized snapshot) would silently ship a no-op
-        # corrector, so say so loudly and fall back to the last weights.
+    if identity_score is None:
+        best_state = {k: v.detach().cpu().clone() for k, v in dp_model.state_dict().items()}
+    elif not (best_score < identity_score):
         print(
             "stage2 WARNING: no checkpoint beat the identity baseline "
-            f"({identity_score}); saving last weights instead. DP did not improve.",
+            f"({identity_score:.4f}); saving the untrained corrector. "
+            "DP did not improve the 72-bin W2.",
             flush=True,
         )
-        best_state = {k: v.detach().cpu().clone() for k, v in dp_model.state_dict().items()}
-    else:
-        dp_model.load_state_dict(best_state)
+    dp_model.load_state_dict(best_state)
     torch.save(dp_model.state_dict(), run_dir / "stage2_final.pt")
     (run_dir / "stage2_loss.json").write_text(
         json.dumps(
