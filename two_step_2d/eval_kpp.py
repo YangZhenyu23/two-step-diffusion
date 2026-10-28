@@ -70,6 +70,72 @@ def w2_3d_proj(x: np.ndarray, ref: np.ndarray, bins: int = 72) -> float:
     return _hist_w2(x, ref, dims=(0, 2), bins=bins)
 
 
+def w2_noise_floor(
+    ref: np.ndarray,
+    bins: int = 72,
+    dims: Sequence[int] = (0, 1),
+    n_gen: Optional[int] = None,
+    seed: int = 0,
+) -> float:
+    """Sampling floor of the histogram W2 metric at the given cloud sizes.
+
+    Two disjoint subsamples of the *same* reference cloud differ by finite-M
+    discretization only, so their W2 is pure noise. It is reported here so that
+    every W2 number can be read against the smallest difference this metric can
+    actually resolve.
+
+    The floor scales like 1/sqrt(M). Two disjoint halves each have M/2 points,
+    which is equivalent to one M-point cloud compared with itself up to a
+    factor sqrt(2); the raw half-vs-half value is therefore rescaled so the
+    returned number is directly comparable to a `n_gen`-vs-`len(ref)`
+    evaluation.
+    """
+    n_ref = ref.shape[0]
+    n_half = n_ref // 2
+    if n_half < 2:
+        return float("nan")
+    target = n_ref if n_gen is None else min(int(n_gen), n_ref)
+    # Bootstrap two independent clouds of the *evaluation* size directly from
+    # the reference. Drawing at the target size avoids extrapolating a
+    # size-dependent rate: measured floors do not follow 1/sqrt(n) exactly, and
+    # extrapolating from small splits biases the number low.
+    rng = np.random.default_rng(seed)
+    reps = 3
+    vals = []
+    for _ in range(reps):
+        a = ref[rng.integers(0, n_ref, size=target)]
+        b = ref[rng.integers(0, n_ref, size=target)]
+        vals.append(_hist_w2(a, b, dims=dims, bins=bins))
+    return float(np.mean(vals))
+
+
+def _w2_halfsplit_floor(
+    ref: np.ndarray,
+    bins: int = 72,
+    dims: Sequence[int] = (0, 1),
+    seed: int = 0,
+) -> float:
+    """Disjoint-halves floor (no resampling). Kept for cross-checking."""
+    n_ref = ref.shape[0]
+    n_half = n_ref // 2
+    if n_half < 2:
+        return float("nan")
+    perm = np.random.default_rng(seed).permutation(n_ref)
+    return _hist_w2(
+        ref[perm[:n_half]], ref[perm[n_half : 2 * n_half]], dims=dims, bins=bins
+    )
+
+
+def debias_w2(w2: float, floor: float) -> float:
+    """Remove the known metric-floor variance: sqrt(W2^2 - floor^2).
+
+    W2 measured against finite-M references is upward biased: even a perfect
+    generator scores roughly the floor. Clipping at zero makes the result a
+    conservative lower bound on the true distributional error.
+    """
+    return float(math.sqrt(max(0.0, w2 * w2 - floor * floor)))
+
+
 def _resample(logw: np.ndarray, rng: np.random.Generator) -> tuple:
     mx = logw.max()
     w = np.exp(logw - mx)
@@ -222,15 +288,26 @@ def evaluate(
 
         if cfg.exp == "kpp2d":
             metric = w2_2d_hist
+            dims = (0, 1)
         else:
             metric = w2_3d_proj
+            dims = (0, 2)
+
+        floor = w2_noise_floor(
+            ref, bins=cfg.evalt.bins, dims=dims, n_gen=n, seed=cfg.evalt.seed
+        )
 
         row: Dict[str, object] = {
             "log2sigma": l2s,
             "w2_cold": metric(cold, ref, cfg.evalt.bins),
             "w2_mf": metric(x_mf, ref, cfg.evalt.bins),
             "w2_dp": metric(x_dp, ref, cfg.evalt.bins),
+            "w2_floor": floor,
         }
+        # Debiased values make the "is this gain real?" question quantitative:
+        # anything below the floor is indistinguishable from a perfect cloud.
+        for key in ("w2_cold", "w2_mf", "w2_dp"):
+            row[key + "_debiased"] = debias_w2(float(row[key]), floor)
         if compute_cT and abs(l2s - cfg.evalt.cT_sigma) < 1e-9:
             row["c_hat"] = float(load_meta(cfg.exp, l2s).get("c_hat", float("nan")))
             row["cT_mf"] = eval_warm_cT(
