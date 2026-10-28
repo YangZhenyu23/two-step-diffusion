@@ -11,3 +11,22 @@ meanflow/.git/
 Thumbs.db
 .idea/
 .vscode/
+
+# LaTeX build products (keep .tex and .pdf)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.bbl
+*.blg
+
+# Re-packable archives (27 MB; regenerate from the directories they bundle)
+two_step_2d.zip
+KPP data.zip
+overleaf_kpp_4_3_4_4.zip
+
+# Local scratch output
+KPP data/kpp3d_cache_test/

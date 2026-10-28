@@ -1,0 +1,2 @@
+Frozen Stage I from full_3d_otgeo.
+Do not retrain or overwrite stage1_*.pt.

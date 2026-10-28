@@ -1,0 +1,3 @@
+Frozen Stage I from full_2d_v2.
+Do not retrain or overwrite stage1_*.pt.
+

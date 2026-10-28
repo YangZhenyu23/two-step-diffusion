@@ -1,0 +1,1151 @@
+
+
+===== PAGE 1 =====
+DeepParticle: learning invariant measure by a deep neural
+network minimizing Wasserstein distance on data generated
+from an interacting particle method
+Zhongjian Wanga, Jack Xinb, Zhiwen Zhangc,∗
+aDepartment of Statistics and CCAM, The University of Chicago, Chicago, IL 60637, USA.
+bDepartment of Mathematics, University of California at Irvine, Irvine, CA 92697, USA.
+cDepartment of Mathematics, The University of Hong Kong, Pokfulam Road, Hong Kong SAR, China.
+Abstract
+WeintroduceDeepParticle, amethodtolearnandgenerateinvariantmeasuresofstochas-
+ticdynamicalsystemswithphysicalparametersbasedondatacomputedfromaninteract-
+ing particle method (IPM). We utilize the expressiveness of deep neural networks (DNNs)
+to represent the transform of samples from a given input (source) distribution to an arbi-
+trary target distribution, neither assuming distribution functions in closed form nor the
+sample transforms to be invertible, nor the sample state space to be finite. In the train-
+ing stage, we update the weights of the network by minimizing a discrete Wasserstein
+distance between the input and target samples. To reduce the computational cost, we
+propose an iterative divide-and-conquer (a mini-batch interior point) algorithm, to find
+the optimal transition matrix in the Wasserstein distance. We present numerical results
+to demonstrate the performance of our method for accelerating the computation of in-
+variant measures of stochastic dynamical systems arising in computing reaction-diffusion
+front speeds in 3D chaotic flows by using the IPM. The physical parameter is a large
+Péclet number reflecting the advection-dominated regime of our interest.
+AMS subject classification: 35K57, 37M25, 49Q22, 65C35, 68T07.
+Keywords: physically parameterized invariant measures, interacting particle method,
+deep learning, Wasserstein distance, front speeds in chaotic flows.
+1. Introduction
+In recent years, deep neural networks (DNNs) have achieved unprecedented levels of
+success in a broad range of areas such as computer vision, speech recognition, natural
+language processing, and health sciences, producing results comparable or superior to
+human experts [31, 18]. The impacts have reached physical sciences where traditional
+first-principle based modeling and computational methodologies have been the norm.
+Thanks in part to the user-friendly open-source computing platforms from industry (e.g.
+TensorFlow and PyTorch), there have been vibrant activities in applying deep learning
+∗Corresponding author
+Email addresses: zhongjian@statistics.uchicago.edu (Zhongjian Wang), jxin@math.uci.edu
+(Jack Xin), zhangzw@hku.hk (Zhiwen Zhang)
+2202
+nuJ
+91
+]GL.sc[
+3v65310.1112:viXra
+
+===== PAGE 2 =====
+tools for scientific computing, such as approximating multivariate functions, solving ordi-
+nary/partial differential equations (ODEs/PDEs) and inverse problems using DNNs; see
+e.g. [29, 52, 13, 14, 21, 45, 26, 2, 72, 50, 60, 73, 51, 25, 37, 36, 49, 66, 71, 1, 64, 39, 58, 70]
+and references therein.
+There are many classical works on the approximation power of neural networks; see
+e.g. [12, 23, 15, 48]. For recent works on the expressive (approximation) power of DNNs;
+see e.g. [10, 55, 69, 45, 39, 58]. In [21], the authors showed that DNNs with rectified
+linear unit (ReLU) activation function and enough width/depth contain the continuous
+piece-wise linear finite element space.
+Solving ODEs or PDEs by a neural network (NN) approximation is known in the
+literature dating back at least to the 1990’s; see e.g. [32, 44, 30]. The main idea in
+these works is to train NNs to approximate the solution by minimizing the residual of
+the ODEs or PDEs, along with the associated initial and boundary conditions. These
+early works estimate neural network solutions on a fixed mesh, however. Recently DNN
+methods are developed for Poisson and eigenvalue problems with a variational principle
+characterization (deep Ritz, [14]), for a class of high-dimensional parabolic PDEs with
+stochastic representations [20], and for advancing finite element methods [22, 5, 4]. The
+physics-informedneuralnetwork(PINN)method[51]andadeepGalerkinmethod(DGM)
+[60] compute PDE solutions based on their physical properties. For parametric PDEs,
+a deep operator network (DeepONet) learns operators accurately and efficiently from
+a relatively small dataset based on the universal approximation theorem of operators
+[40]; a Fourier neural operator method [34] directly learns the mapping from functional
+parametric dependence to the solutions (of a family of PDEs). Deep basis learning is
+studied in [43] to improve proper orthogonal decomposition for residual diffusivity in
+chaotic flows [42], among other works on reduced order modeling [29, 62, 8]. In [71, 1],
+weak adversarial network methods are studied for weak solutions and inverse problems,
+see also related studies on PDE recovery from data via DNN [37, 36, 49, 66] among
+others. In the context of surrogate modeling and uncertainty quantification (UQ), DNN
+methods include Bayesian deep convolutional encoder-decoder networks [72], deep multi-
+scale model learning [63], physics-constrained deep learning method [73], see also [26,
+55, 25, 68] and references therein. For DNN applications in mean field games (high
+dimensional optimal control problems) and various connections with numerical PDEs,
+see [6, 7, 53, 3, 35] and references therein. In view of the above literature, the DNN
+interactions with numerical PDE methods mostly occur in the Eulerian setting with PDE
+solutions defined in either the strong or weak (variational) sense.
+Our goal here is to study deep learning in a Lagrangian framework of multi-scale PDE
+problems, coming naturally from our recent work ([41], reviewed in section 4.2 later) on a
+convergent interacting particle method (IPM) for computing large-scale reaction-diffusion
+front speeds through chaotic flows. The method is based on a genetic algorithm that
+evolves a large ensemble of uniformly distributed particles at the initial time to another
+ensemble of particles obeying an invariant measure at a large time. The front speed
+is readily computed from the invariant measure. Though the method is mesh-free, the
+computational costs remain high as advection becomes dominant at large Péclet numbers.
+Clearly,itisdesirabletoinitializeparticledistributionwithsomeresemblanceofthetarget
+invariant measure instead of starting from the uniform distribution. Hence learning from
+2
+
+===== PAGE 3 =====
+samplesofinvariantmeasureatasmallerPécletnumberwithmoreaffordablecomputation
+to predict an invariant measure at a larger Péclet number becomes a natural problem to
+study.
+Specifically, we shall develop a DNN f(·;θ) to map a uniform distribution µ (source)
+to an invariant measure ν = ν(κ) (target), where κ is the reciprocal of Péclet number,
+and θ consists of network weights and κ. The network is deep from input to output
+with 12 Sigmoid layers while the first three layers are coupled to a shallow companion
+network to account for the effects of parameter κ on the network weights. In addition,
+we include both local and nonlocal skip connections along the deep direction to assist
+information flow. The network is trained by minimizing the 2-Wasserstein distance (2-
+WD) between two measures µ and ν [61]. We consider a discrete version of 2-WD for
+finitely many samples of µ and ν, which involves a linear program (LP) optimizing over
+doubly stochastic matrices [59]. Directly solving the LP by the interior point method
+[65] is too costly. We devise a mini-batch interior point method by sampling smaller sub-
+matrices while preserving row and column sums. This turns out to be very efficient and
+integrated well with the stochastic gradient descent (SGD) method for the entire network
+training.
+We shall conduct three numerical experiments to verify the performance of the pro-
+posed DeepParticle method. The first example is a synthetic data set on R1, where µ is
+a uniform distribution and ν is a normal distribution with zero mean and variance σ2. In
+1
+the second example, we compute the Kolmogorov-Petrovsky-Piskunov (KPP) front speed
+in a 2D steady cellular flow and learn the invariant measures corresponding to different
+κ’s. In this experiment, µ is a uniform distribution on [0,2π]2, and ν an empirical invari-
+ant measure obtained from IPM simulation of reaction-diffusion particles in advecting
+flows with Péclet number O(κ−1). Finally, we compute the KPP front speed in a 3D
+time-dependent Kolmogorov flow with chaotic streamlines and study the IPM evolution
+of the measure in three-dimensional space. In this experiment, µ is a uniform distribu-
+tion on [0,2π]3, and ν is an empirical invariant measure obtained from IPM simulation
+of reaction-diffusion particles of the KPP equation in time-dependent Kolmogorov flow.
+Numerical results show that the proposed DeepParticle method efficiently learns the κ
+dependent target distributions and predicts the physically meaningful sharpening effect
+as κ becomes small.
+We remark that though there are other techniques for mapping distributions such
+as Normalizing Flows (NF) [27], Generative Adversarial Networks (GAN) [19], entropic
+regularization and Sinkhorn Distances [11, 47], Fisher information regularization [33], our
+method differs either in training problem formulation or in imposing fewer constraints
+on the finite data samples. For example, our mapping is not required to be invertible as
+in NF, the training objective is not min-max as in GAN for image generation, there is
+no regularization effect such as blurring or noise. We believe that our method is better
+tailored to our problem of invariant measure learning by using a moderate amount of
+training data generated from the IPM. Detailed comparison will be left for future work.
+The rest of the paper is organized as follows. In Section 2, we review the basic
+idea of DNNs and their properties, as well as Wasserstein distance. In Section 3, we
+introduce our DeepParticle method for learning and predicting invariant measures based
+on the 2-Wasserstein distance minimization. In Section 4, we present numerical results
+3
+
+===== PAGE 4 =====
+to demonstrate the performance of our method. Finally, concluding remarks are made in
+Section 5.
+2. Preliminaries
+2.1. Artificial Neural Network
+In this section, we introduce the definition and approximation properties of DNNs. There
+aretwoingredientsindefiningaDNN.Thefirstoneisa(vector)linearfunctionoftheform
+T : Rn → Rm, defined as T(x) = Ax+b, where A = (a ) ∈ Rm×n, x ∈ Rn and b ∈ Rm.
+ij
+The second one is a nonlinear activation function σ : R → R. A frequently used activation
+function, knownastherectifiedlinearunit(ReLU),isdefinedasσ(x) = max(0,x)[31]. In
+the neural network literature, the sigmoid function is another frequently used activation
+function, which is defined as σ(x) = (1+e−x)−1. By applying the activation function in
+an element-wise manner, one can define (vector) activation function σ : Rm → Rm.
+Equipped with those definitions, we are able to define a continuous function F(x) by
+a composition of linear transforms and activation functions, i.e.,
+F(x) = Tk ◦σ ◦Tk−1 ◦σ ···◦T1 ◦σ ◦T0(x), (1)
+whereTi(x) = A x+b withA beundeterminedmatricesandb beundeterminedvectors,
+i i i i
+and σ(·) is the element-wise defined activation function. Dimensions of A and b are
+i i
+chosen to make (1) meaningful. Such a DNN is called a (k +1)-layer DNN, which has k
+hidden layers. Denoting all the undetermined coefficients (e.g., A and b ) in (1) as θ ∈ Θ,
+i i
+where θ is a high-dimensional vector and Θ is the space of θ. The DNN representation of
+a continuous function can be viewed as
+F = F(x;θ). (2)
+Let F = {F(·,θ)|θ ∈ Θ} denote the set of all expressible functions by the DNN param-
+eterized by θ ∈ Θ. Then, F provides an efficient way to represent unknown continuous
+functions, in contrast with a linear solution space in classical numerical methods, e.g.
+the space of linear nodal basis functions in the finite element methods and orthogonal
+polynomials in the spectral methods.
+2.2. Wasserstein distance and optimal transportation
+Wasserstein distances are metrics on probability distributions inspired by the problem of
+optimalmasstransportation. Theymeasuretheminimaleffortrequiredtoreconfigurethe
+probability mass of one distribution in order to recover the other distribution. They are
+ubiquitous in mathematics, especially in fluid mechanics, PDEs, optimal transportation,
+and probability theory [61].
+One can define the p-Wasserstein distance between probability measures µ and ν on
+a metric space Y with distance function dist by
+(cid:18) (cid:90) (cid:19)1/p
+W (µ,ν) := inf dist(y(cid:48),y)p dγ(y(cid:48),y) (3)
+p
+γ∈Γ(µ,ν) Y×Y
+4
+
+===== PAGE 5 =====
+where Γ(µ,ν) is the set of probability measures γ on Y ×Y satisfying γ(A×Y) = µ(A)
+and γ(Y × B) = ν(B) for all Borel subsets A,B ⊂ Y. Elements γ ∈ Γ(µ,ν) are called
+couplings of the measures µ and ν, i.e., joint distributions on Y × Y with marginals µ
+and ν on each axis.
+In the discrete case, the definition (3) has a simple intuitive interpretation: given a
+γ ∈ Γ(µ,ν) and any pair of locations (y(cid:48),y), the value of γ(y(cid:48),y) tells us what proportion
+of µ mass at y(cid:48) should be transferred to y, in order to reconfigure µ into ν. Computing
+the effort of moving a unit of mass from y(cid:48) to y by dist(y(cid:48),y)p yields the interpretation
+of W (µ,ν) as the minimal effort required to reconfigure µ mass distribution into that of
+p
+ν. A cost function c(y(cid:48),y) on Y ×Y tells us how much it costs to transport one unit of
+mass from location y(cid:48) to location y. When the cost function c(y(cid:48),y) = dist(y(cid:48),y)p, the
+p-Wasserstein distance (3) reveals the Monge-Kantorovich optimization problem, see [61]
+for more exposition.
+Inapracticalsetting[47], theclosed-formsolutionofµandν maybeunknown, instead
+only N independent and identically distributed (i.i.d.) samples of µ and ν are available.
+We approximate the probability measures µ and ν by empirical distribution functions:
+N N
+1 (cid:88) 1 (cid:88)
+µ = δ and ν = δ . (4)
+N
+xi
+N
+yj
+i=1 j=1
+Any element in Γ(µ,ν) can clearly be represented by an N ×N doubly stochastic matrix
+[59], denoted as transition matrix, γ = (γ ) satisfying:
+ij i,j
+N N
+(cid:88) (cid:88)
+γ ≥ 0; ∀j, γ = 1; ∀i, γ = 1. (5)
+ij ij ij
+i=1 j=1
+The empirical distribution functions allow us to approximate different measures. And
+the doubly stochastic matrix provides a practical tool to study the transformation of
+measuresviaminimizingtheWassersteindistancebetweendifferentempiricaldistribution
+functions. Notice that when the number of particles becomes large, it is expensive to find
+the transition matrix γ to calculate discrete Wasserstein distance. We propose an efficient
+submatrix sampling method to overcome this difficulty in the next section.
+3. Methodology
+3.1. Physical parameter dependent neural networks
+Compared with general neural networks, we propose a new architecture to learn the de-
+pendency of physical parameters. Such type of network is expected to have independently
+batched input, and the output should also rely on some physical parameter that is shared
+by the batched input. Thus, in addition to concatenating the physical parameters as
+input, we also include some linear layers whose weights and biases are generated from a
+shallow network; see Fig. 1 for the layout of the proposed network used in later numerical
+experiments.
+To be more precise, we let the network take on two kinds of input, X and η. Their
+batch sizes are denoted as N and n respectively. Then, there are n sets of X, such
+η η
+5
+
+===== PAGE 6 =====
+that X in each set shares the same physical parameter η. From layer1 to layer12 are
+general linear layers in which the weights and biases are randomly initialized and up-
+dated by Adams descent during training. They are 20 in width and Sigmoid function
+is applied as activation between adjacent layers. Arrows denote the direction in forward
+propagation. From layer1_2 to layer3_2 are linear layers with 20 in width, but every
+element of weight matrix and bias vector is individually generated from the par−net
+specified on the right. Input of par−net is the shared parameter, namely η. From
+par−net : layer1 to par−net : layer3 are general linear layers with 10 in width. For
+example, given the physical parameter η is d dimension, to generate a 20 × 20 weight
+η
+matrix, we first tile η to bsz × 20 × 20 × d tensor η (boldface for tensor). Here bsz
+η
+denotes the shape of input batches which are independently forwarded in the network.
+In our numerical examples, bsz = n × N. Then, we introduce a 20 × d × 10 tensor
+η η
+as weight matrix w in par−net : layer1 and do matrix multiplication of η and w on
+the last two dimensions while keeping dimensions in front. The third dimension in w is
+the width of the par−net : layer3. Shapes of weight tensor in par−net : layer2 and
+par−net : layer3 are 20 × 10 × 10 and 20 × 10 × 1 respectively. The weight param-
+eters of the par−net are randomly initialized and updated by gradient descent during
+training. We also include some skip connections as in Resnet to improve the performance
+of deeper layers in our network. In addition to standard Resnet short cuts, we design
+a linear propagation path directly from the input x to the output f(x). In numerical
+experiment shown later, such connection helps avoid output being over-clustered. There
+is no activation function between the last layer and output.
+3.2. DeepParticle Algorithms
+Given distributions µ and ν defined on metric spaces X and Y, we aim to construct a
+transport map f0 : X → Y such that f0(µ) = ν, where star denotes the push forward
+∗
+of the map. On the other hand, given function f : X → Y, the p-Wasserstein distance
+between f (µ) and ν is defined by:
+∗
+(cid:18) (cid:90) (cid:19)1/p
+W (f (µ),ν) := inf dist(y(cid:48),y)p dγ(y(cid:48),y) , (6)
+p ∗
+γ∈Γ(f∗(µ),ν) Y×Y
+where Γ(f (µ),ν) denotes the collection of all measures on Y ×Y with marginals f (µ)
+∗ ∗
+and ν on the first and second factors respectively and dist denotes the metric (distance)
+on Y. A straightforward derivation yields:
+(cid:18) (cid:90) (cid:19)1/p
+W (f (µ),ν) = inf dist(f(x),y)p dγ(x,y) , (7)
+p ∗
+γ∈Γ(µ,ν) X×Y
+where Γ(µ,ν) denotes the collection of all measures on X×Y with marginals µ and ν on
+the first and second factors respectively and still dist denotes the metric (distance) on Y.
+Network Training Objective. Our DeepParticle algorithm does not assume the knowledge
+of closed form distribution of µ and ν, instead we have i.i.d. samples of µ and ν namely,
+x and y , i,j = 1,··· ,N, as training data. Then a discretization of (7) is:
+i j
+6
+
+===== PAGE 7 =====
+par-net: layer1
+x η
+par-net: layer2
+layer1 layer1_2
+par-net: layer3
+no activation
+layer2 layer2_2 weight and bias
+skip layer3 layer3_2
+skip layer4
+linear, no activation
+skip
+layer5
+...
+layer11
+skip
+layer12
+linear, no activation
+f(x)
+Figure 1: Layout of the proposed deep network where η is physical parameter input for learning its
+implicit dependence in the output f(x).
+(cid:32) (cid:33)1/p
+N
+(cid:88)
+W ˆ (f) := inf dist(f(x ),y )pγ , (8)
+i j ij
+γ∈ΓN
+i,j=1
+where ΓN denotes all N ×N doubly stochastic matrices.
+Let the map (represented by neural network in Fig. 1) be f (x;η) where x is the
+θ
+input, η is the shared physical parameter and θ denotes all the trainable parameters in
+the network. Clearly W ˆ (f ) ≥ 0. In case of X = Y = Rd equipped with Euclidean metric,
+θ
+we take p = 2. The training loss function is
+nη (cid:32) N (cid:33)
+(cid:88) (cid:88)
+W ˆ 2(f ) := inf |f (x ;κ )−y |2γ . (9)
+θ θ i,r r j,r ij,r
+r=1
+γr∈ΓN
+i,j=1
+Iterative method in finding transition matrix γ. To minimize the loss function (9), we
+update parameters θ of f with the classical Adams stochastic gradient descent, and
+θ
+alternate with updating the transition matrix γ.
+7
+
+===== PAGE 8 =====
+We now present a mini-batch linear programming algorithm to find the best γ for each
+inner sum of (9), while suppressing k dependence in f . Notice that the problem (9) is a
+r θ
+linear program on the bounded convex set ΓN of vector space of real N×N matrices. By
+Choquet’s theorem, this problem admits solutions that are extremal points of ΓN. Set of
+all doubly stochastic matrix ΓN can be referred to as Birkhoff polytope. The Birkhoff–von
+Neumann theorem [54] states that such polytope is the convex hull of all permutation
+matrices, i.e., those matrices such that γ = δ for some permutation π of {1,...,N},
+ij j,π(i)
+where δ is the Kronecker symbol.
+jk
+The algorithm is defined iteratively. In each iteration, we select columns and rows and
+solve a linear programming sub-problem under the constraint that maintains column-wise
+androw-wisesumsofthecorrespondingsub-matrixofγ. Tobeprecise, let{i }M , {j }M
+k k=1 l l=1
+(M (cid:28) N) denote the index chosen from {1,2,··· ,N} without replacement. The cost
+function of the sub-problem is
+M
+(cid:88)
+C(γ∗) := |f (x )−y |2γ∗ (10)
+θ i k j l i k j l
+k,l=1
+subject to
+ (cid:80)M γ∗ = (cid:80)M γ ∀l = 1,··· ,M
+ (cid:80)M k=1 γ∗ i k ,j l = (cid:80)M k=1 γ i k ,j l ∀k = 1,··· ,M (11)
+ γ∗ l=1 ≥ i 0 k ,j l ∀k,l l = =1 1, i k · , · j l · ,M,
+i j
+k l
+where γ are from the previous step. This way, the column and row sums of γ are
+i ,j
+k l
+preserved by the update. The linear programming sub-problem of much smaller size is
+solved by the interior point method [65].
+We observe that the global minimum of γ in (9) is also the solution of sub-problems
+(10) with arbitrarily selected rows and columns, subject to the row and column partial
+sum values of the global minimum. The selection of rows and columns can be one’s own
+choice. In our approach, in each step after gradient descent, apart from random sampling
+of rows and columns, we also perform a number of searches for rows or columns with the
+largest entries to speed up computation; see Alg. 1.
+Algorithm 1: Random Pivot Search
+Result: Given transition matrix γ, randomly search M rows/columns with
+largest elements (“pivots”).
+Randomly pick i as the first row;
+1
+find j such that γ is the largest among {γ ,··· ,γ };
+1 i1j1 i11 i1N
+for k ← 2 to M do
+find i such that γ is the largest among {γ } ;
+k i k j k−1 i(cid:48)j k−1 i(cid:48)∈{1,···,N}\{i1,···,i k−1 }
+find j such that γ is the largest among {γ } ;
+k i k j k i k j(cid:48) j(cid:48)∈{1,···,N}\{j1,···,j k−1 }
+end
+The cost of finding optimal γ increases as N increases, however, the network itself
+is independent of γ. After training, our network acts as a sampler from some target
+distribution ν without assumption of closed-form distribution of ν. At this stage, the
+8
+
+===== PAGE 9 =====
+input data is no longer limited by training data, an arbitrarily large amount of samples
+approximately obeying ν can be generated through µ (uniform distribution).
+Update of training data. Note that given any fixed set of {x } and {y } (training data),
+i j
+we have developed the iterative method to calculate the optimal transition matrix γ in
+(9) and update network parameter θ at the same time. However, in more complicated
+cases, more than one set of data (size of which is denoted as bsz) should be assimilated.
+The total number of data set is denoted N . For the second and later set of training
+dict
+data, the network is supposed to establish some accuracy. So before updating the network
+parameter, we first utilize our iterative method to find an approximated new γ for the
+new data feed to reach a preset level measured by the normalized Frobenius norm (cid:107)·(cid:107)
+fro
+of γ ( (cid:107)γ(cid:107) divided by the square root of its row number). The full training process is
+F
+outlined in Alg. 2.
+4. Numerical Examples
+4.1. Mapping uniform to normal distribution
+For illustration, we first apply our algorithm to learn a map from 1D uniform distribution
+on[0,1]to1Dnormaldistributionwithzeromeanandvariousstandardderivationσ . The
+1
+σ refers to one dimensional η in the network of Fig.1. As training data, we independently
+1
+generate n = 8 sets of N = 1500 uniformly distributed points, also N = 1500 normally
+σ1
+distributed sample points with zero mean and standard derivation σ equally spaced in
+1
+[2,3.75]. During training, we aim to find a σ -dependent network such that the output
+1
+from the 8 input data sets along with their σ values approximate normal distributions
+1
+with standard derivation σ , respectively. The layout of network is shown in Fig. 1. The
+1
+total number of training steps is 104 with initial learning rate 0.02 and N = 1 data set.
+dict
+After each update of parameters, we solve the optimization problem of transition matrix
+γ, i.e. Eq.(10) under Eq.(11), with selection of rows and columns by Alg. 1 for N = 5
+LP
+times. After training, we generate N = 40000 uniformly distributed test data points and
+apply the networks with σ = 2, 3, 4, 5.
+1
+In Fig. 2, we plot the output histograms. Clearly, the empirical distributions vary
+with σ and fit the reference normal probability distribution functions (pdfs) in red lines.
+1
+We would like to clarify that even though the dependence of σ in this example is ‘linear’,
+1
+the linear propagation directly from input to output does not depend on σ and output
+1
+par−net is no longer a linear function of σ . In addition, we plot the input-output pairs
+1
+at the bottom of each empirical distribution. Each line connects the input (for better
+visualization we scale it to Unif[−5,5]) and its corresponding output from the network.
+In one dimensional case, it is well known that the inverse of the cumulative distribution
+function is the optimal transport map. It is a monotone function that maps uniform
+distribution to the quantile of the target distribution. In the plotted input-output pair,
+we can see there are no lines crossing. It verifies that our network finds the monotone
+transport map. Our experiments here and below are all carried out on a quad-core CPU
+desktop with an RTX2080 8GB GPU at UC Irvine.
+4.2. Computing front speeds in complex fluid flows
+Front propagation in complex fluid flows arises in many scientific areas such as turbulent
+combustion, chemical kinetics, biology, transport in porous media, and industrial deposi-
+tion processes [67]. A fundamental problem is to analyze and compute large-scale front
+9
+
+===== PAGE 10 =====
+Algorithm 2: DeepParticle Learning
+Randomly initialize weight parameters θ in network f : Rd → Rd;
+θ
+repeat
+for physical parameter set r ← 0 to n do
+η
+randomly select {x }, {y }, i,j = 1 : N from i.i.d. samples of input and
+i,r j,r
+target distribution with respect to physical parameter η ;
+r
+γ = 1/N;
+ij,r
+end
+if not the first training mini-batch then
+for physical parameter set r ← 0 to n do
+η
+P = (cid:80)N |f (x ,η )−y |2γ ;
+r i,j=1 θ i,r r j,r ij,r
+while ||γ || < tol do
+r fro
+randomly (or by Alg.1) choose {i }M , {j }M from
+k,r k=1 l,r l=1
+{1,2,··· ,N} without replacement;
+solve the linear programming sub-problem (10)-(11) to get γ∗;
+r
+update {γ }M with {γ∗ }M .
+i k,r j l,r k,l=1 i k,r j l,r k,l=1
+end
+end
+end
+repeat
+P = (cid:80)Nr (cid:80)N |f (x ,η )−y |2γ ;
+r=1 i,j=1 θ i,r r j,r ij,r
+θ ← θ−δ ∇ P, δ is the learning step size;
+1 θ 1
+repeat
+for physical parameter set r ← 0 to n do
+η
+P = (cid:80)N |f (x ,η )−y |2γ ;
+r i,j=1 θ i,r r j,r ij,r
+randomly (or by Alg.1) choose {i }M , {j }M from
+k,r k=1 l,r l=1
+{1,2,··· ,N} without replacement;
+solve the linear programming sub-problem (10)-(11) to get γ∗;
+r
+update {γ }M with {γ∗ }M .
+i k,r j l,r k,l=1 i k,r j l,r k,l=1
+end
+until given linear programming steps, N ;
+LP
+until given steps for each training mini-batch;
+until given number of training mini-batches, N ;
+dict
+Return
+10
+
+===== PAGE 11 =====
+(a) σ =2 (b) σ =3
+1 1
+(c) σ =4 (d) σ =5
+1 1
+Figure 2: Generated histograms with the red lines being the ground truth pdfs. Lines under the pdfs
+connect inputs, scaled to Unif[−5,5], and their corresponding outputs of the network.
+speeds. An extensively studied model problem is the reaction-diffusion-advection (RDA)
+equation with Kolmogorov-Petrovsky-Piskunov (KPP) nonlinearity [28]:
+u = κ∆ u+(v·∇ )u+u(1−u), t ∈ R+, x = (x ,...,x )T ∈ Rd, (12)
+t x x 1 d
+where κ is diffusion constant, v is an incompressible velocity field (precise definition given
+later), and u is the concentration of reactant. Let us consider velocity fields v = v(t,x) to
+be T-periodic in space and time, which contain the celebrated Arnold-Beltrami-Childress
+(ABC) and Kolmogorov flows as well as their variants with chaotic streamlines [9, 24].
+The solutions from compact non-negative initial data spread along direction e with speed
+[46]:
+c∗(e) = inf λ(α)/α,
+α>0
+where λ(α) is the principal eigenvalue of the parabolic operator ∂ −A with:
+t
+(cid:0) (cid:1)
+Aw := κ∆ w+(2αe+v)·∇ w+ κα2 +αv·e+1 w, (13)
+x x
+on the space domain Td := [0,T]d (periodic boundary condition). It is known [46] that
+λ(α)isconvexinα,andsuperlinearforlargeα. TheoperatorAin(13)isasumA = L+C,
+with
+(cid:0) (cid:1)
+L := κ∆ ·+(2αe+v)·∇ ·, C := c(t,x)· = κα2 + αv·e+1 · (14)
+x x
+whereListhegeneratorofaMarkovprocess,andC actsasapotential. TheFeynman-Kac
+(FK) formula [16] gives λ(α) a stochastic representation:
+(cid:18) (cid:26)(cid:90) t (cid:27)(cid:19)
+λ = lim t−1ln Eexp c(t−s,Xt,x)ds . (15)
+s
+t→∞
+0
+11
+
+===== PAGE 12 =====
+In Eq.(15), Xt,x satisfies the following stochastic differential equation
+s
+√
+dXt,x = b(t−s,Xt,x)ds+ 2κdW , Xt,x = x, (16)
+s s s 0
+where the drift term b = 2αe + v and W(s) is the standard d-dimensional Wiener
+process. The expectation E(·) in (15) is over W(t). Directly applying (15) and Monte
+Carlo method to compute λ(α) is unstable as the main contribution to E(·) comes from
+sample paths that visit maximal or minimal points of the potential function c, resulting
+in inaccurate or even divergent results. A computationally feasible alternative is a scaled
+version, the FK semi-group:
+E[φ(Xt,x) exp{ (cid:82)t c(t−s,Xt,x)ds}] Pc(ν)(φ)
+Φc(ν)(φ) := t 0 s := t .
+t E[exp{ (cid:82)t c(t−s,Xt,x)ds}] Pc(ν)(1)
+0 s t
+Acting on any initial probability measure ν, Φc (ν) converges weakly to an invariant
+nT
+measure ν (i.e. Φc(ν ) = ν ) as n → ∞, for any smooth test function φ. Moreover,
+c T c c
+Pc(ν ) = exp{λt}ν or λ = t−1 ln E [Pc(ν )]. (17)
+t c c νc t c
+Given a time discretization step ∆t, an interacting particle method (IPM) proceeds to
+discretize Xt,x as X∆t, (i = 1,··· ,n×m, where m = T ) by Euler’s method, approxi-
+s i ∆t
+mates the evolution of probability measure Φc(ν) by a particle system with a re-sampling
+t
+technique to reduce variance. Let
+(cid:34) (cid:40) (cid:41)(cid:35)
+m
+(cid:88)
+Pc,∆t(ν)(φ) := E φ(X∆t ) exp ∆t c((m−i)∆t,X∆t ) . (18)
+n nm i+(n−1)m
+i=1
+Then sampled FK semi-group actions on ν:
+Pc,∆t(ν)(φ) (cid:90)
+Φc,∆t(ν)(φ) = n −→ φdν , as n ↑ ∞, ∀ smooth φ,
+n P n c,∆t(ν)(1) Td c,∆t
+whereν isaninvariantmeasureofthediscrete mapΦc,∆t, thanks tobbeingT-periodic
+c,∆t 1
+in time. There exists q ∈ (0,1) so that [41]:
+λn := (nT)−1 ln[Pc,∆t(ν )(1)] −−−→ T−1 ln[Pc,∆t(ν )(1)] = λ+o((∆t)q). (19)
+∆t n 0 1 c,∆t
+n→∞
+The IPM algorithm below (Alg. 3) approximates the evolving measure as an empirical
+measure of a large number of genetic particles that undergo advection-diffusion (L) and
+mutations (C). The mutation relies on fitness and its normalization defined as in the
+FK semi-group. In Alg.3, the evolution is phrased in G generations, each moving and
+mutating m times in a life span of T. The index n in (18) is changed to G.
+12
+
+===== PAGE 13 =====
+Algorithm 3: Genetic Interacting Particle Method
+Initialize first generation of N particles ξ0 = (ξ0,1,··· ,ξ0,N0), uniformly
+0 1 1 1
+distributed over Td (d ≥ 2). Let g be the generation number in approximating
+ν . Each generation moves and replicates m-times, with a life span T (time
+c,∆t
+period), time step ∆t = T/m.
+while g = 1 : G−1 do
+while i = 0 : m−1 do
+ζi ← one-step-advection-diffusion update on ξi. Define fitness
+g g
+F := exp{c(T −i∆t,ζi)∆t}.
+g
+E := 1 ln (mean population fitness).
+g,i ∆t
+Normalize fitness to weight. p := F/SUM(F).
+ξi+1 ← resample ζi via multinomial distribution with weight p.
+g g
+end
+ξ0 ← ξm, E ← mean(E ) over i.
+g+1 g g g,i
+end
+Output: approximate λ ← mean(E ), and ξ0.
+∆t g G
+Muchprogresshasbeenmadeinthefiniteelementcomputation[57,56,74]oftheKPP
+principal eigenvalue problem (13) particularly in steady 3D flows v = v(x). However,
+when κ is small and the spatial dimension is 3, adaptive FEM can be extremely expensive.
+For 2D time periodic cellular flows, adaptive basis deep learning is found to improve the
+accuracy of reduced order modeling [42, 43]. Extension of deep basis learning to 3D in the
+Eulerian setting has not been attempted partly due to the costs of generating a sufficient
+amount of training data.
+An advantage of the IPM is that given the same particle number, the computational
+cost of generating training data scales linearly with the dimension of spatial variables. As
+a comparison, in the Eulerian framework, one needs to solve the principal eigenvalue of
+a parabolic operator ∂ − A by discretizing the eigenvalue problem on mesh grids. The
+t
+number of mesh grids depends exponentially on the spatial dimension, which becomes
+expensive for 3D problems. Though adaptive mesh techniques can alleviate the compu-
+tational burden, their design and implementation are challenging for time dependent 3D
+problems when large gradient regions are dynamically changing and repeated mesh adap-
+tations must be performed. In contrast, the IPM is spatially mesh-free and self-adaptive.
+The computational bottleneck remains in IPM at small κ when we need a large number
+of particles running for many generations to approach the invariant measure. To address
+this issue, we apply our DeepParticle method to generate particle samples by initiating
+at a learned distribution resembling the invariant measure and accelerating Alg. 3 (i.e.
+reduce G to reach convergence).
+2Dsteadycellularflow. Wefirstconsidera2Dcellularflowv = (−sinx cosx ,cosx sinx ).
+1 2 1 2
+In this case, we apply the physical parameter dependent network described in Section 3.1
+to learn the invariant measure corresponding to different κ values. To generate training
+data, wefirstusetheIPM,Alg. 3withκ = 2−2−0.25∗(i−1), i = 1 : 8(= n ), andN = 40000
+i η 0
+particle evolution for G = 2048, ∆t = 2−8, T = 1, to get samples of invariant measure at
+different κ values. The value of G is chosen so that the direct IPM simulation of princi-
+pal eigenvalue converges, see blue line of Fig.4(d). From each set of sample points with
+13
+
+===== PAGE 14 =====
+different κ’s, we randomly pick N = 2000 sample points without replacement, denoted as
+Y ,··· ,Y . Under such setting, we then seek neural networks f such that given κ and
+1 8 θ i
+a set X of i.i.d. uniformly distributed points on [0,2π]2, the network output f (X ;κ )
+i θ i i
+is distributed near Y in W2 distance. The set {Y ,··· ,Y } is called one mini-batch of
+i 1 8
+training data and in total we have N = 5 mini-batches through 50000 steps of network
+dict
+training. As stated in Alg. 2, after each mini-batch of network training (10000 steps of
+gradient descent), we re-optimize γ until its normalized Frobenius norm is greater than
+tol = 0.7. Note that only a quarter of the 40,000 particles in the IPM simulations have
+been used in training.
+During training, we apply Adams gradient descent with initial learning rate 0.002 and
+a weight decay with hyper-parameter 0.005 for trainable weights in the network. In each
+step, we select M = 25 columns and rows by Alg. 1 in solving the sub-optimization
+problem (10) and repeat the linear programming for N = 10 times.
+LP
+In Fig. 3, we present the performance of our algorithm in sampling distribution
+in the original training data. Each time, the training algorithm only has access to at
+most N × N = 10000 samples of each target distribution with κ = 2−2−0.25∗(i−1),
+dict i
+i = 1,··· ,8 = n . After training, we generate N = 40000 uniformly distributed points
+η 0
+as input of the network. We compare the histogram of network output and that of the
+N = 40000 sample points obeying the invariant measure from the IPM Alg.3. We see
+0
+that our trained parameter-dependent network indeed reproduces the sharpening effect
+on the invariant measure when κ becomes small.
+0.15 0.15 0.15 0.15
+6 6 6 6
+5 5 5 5
+4 0.1 4 0.1 4 0.1 4 0.1
+3 3 3 3
+2 0.05 2 0.05 2 0.05 2 0.05
+1 1 1 1
+0 0 0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(a) κ=2−2 (b) κ=2−2.5 (c) κ=2−3 (d) κ=2−3.5
+0.15 0.15 0.15 0.15
+6 6 6 6
+5 5 5 5
+4 0.1 4 0.1 4 0.1 4 0.1
+3 3 3 3
+2 0.05 2 0.05 2 0.05 2 0.05
+1 1 1 1
+0 0 0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(e) κ=2−2 (f) κ=2−2.5 (g) κ=2−3 (h) κ=2−3.5
+Figure 3: Generated invariant measure (upper row) and corresponding training data (reference, lower
+row)
+In Fig. 4, we present the performance of algorithm in predicting the invariant measure
+of IPM with κ = 2−4. First we compare the invariant measure generated from direct
+simulation with IPM (Fig. 4(a)) and from the trained network (Fig. 4(b)). In Fig. 4(c),
+we show the W distance between the generated distribution and the target distribution
+2
+of the training data. The W distance goes up when we re-sample the training data.
+2
+This is because at this moment, the transition matrix γ in the definition of the W
+2
+14
+
+===== PAGE 15 =====
+distance is inaccurate. Note that the test κ = 2−4 value is no longer within the training
+range κ = 2−p, p ∈ [2,3.75]. Our trained network predicts an invariant measure. Such
+prediction also serves as a ‘warm start’ for IPM and can accelerate its computation to
+quickly reach a more accurate invariant measure. As the invariant measure has no closed-
+form analytical solution, we plot in Fig. 4(d) the principal eigenvalue approximations by
+IPM with warm and cold starts, i.e. one generated from DeepParticle network (warm)
+andthei.i.d. samplesfromauniformdistribution(cold). ThewarmstartbyDeepParticle
+achieves 4x to 8x speedup.
+0.15 0.15
+6 6
+5 5
+0.1 0.1
+4 4
+3 3
+2 0.05 2 0.05
+1 1
+0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(a) Ground truth invariant measure (b) Predicted invariant measure
+0.35
+0.3
+0.25
+0.2
+0.15
+0.1
+0.05
+0
+0 1 2 3 4 5
+steps 104
+ecnatsiD
+2W
+0.85
+0.8
+0.75
+0.7
+0.65
+0.6
+0.55
+0.5
+100 101 102 103 104
+generations
+(c) W2 training error vs. gradient descent
+steps: spikes of height ≈ 0.1 occur due to
+transition matrix γ re-optimized in response
+to mini-batching of input training data.
+lavgie
+(d) Acceleration: convergence to λ value
+∆t
+computed by Alg.3 with warm/cold start by
+DeepParticle prediction (red)/uniform distri-
+bution (blue).
+Figure 4: DeepParticle prediction (top), training/acceleration (bottom) at test value κ = 2−4 in a 2D
+front speed computation. Loss reduction in c) shows fast (steps before 1.e4) and slow phases [38].
+Fig. 5 displays histograms of N = 40000 samples generated from our DeepParticle
+0
+algorithm at different stage of training. In Fig. 5(d) with only one set of data, we already
+get a rough prediction of target distribution. With more data sets added, the prediction
+quality improves; see Fig. 5(e) to Fig. 5(i).
+3D time-dependent Kolmogorov flow. Next, we compute KPP front speed in a 3D time-
+dependent Kolmogorov flow [17]:
+v = (sin(x +sin(2πt)),sin(x +sin(2πt)),sin(x +sin(2πt))).
+3 1 2
+15
+
+===== PAGE 16 =====
+0.15 0.15 0.15
+6 6 6
+5 5 5
+4 0.1 4 0.1 4 0.1
+3 3 3
+2 0.05 2 0.05 2 0.05
+1 1 1
+0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(a) GD steps = 1000 (b) GD steps = 4000 (c) GD steps = 7000
+0.15 0.15 0.15
+6 6 6
+5 5 5
+4 0.1 4 0.1 4 0.1
+3 3 3
+2 0.05 2 0.05 2 0.05
+1 1 1
+0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(d) GD steps = 10000 (e) GD steps = 15000 (f) GD steps = 20000
+0.15 0.15 0.15
+6 6 6
+5 5 5
+4 0.1 4 0.1 4 0.1
+3 3 3
+2 0.05 2 0.05 2 0.05
+1 1 1
+0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(g) GD steps = 30000 (h) GD steps = 40000 (i) GD steps = 50000
+Figure5: Measuresgeneratedatdifferentgradientdescent(GD)stepsinnetworktrainingforKPPfront
+speeds in 2D steady cellular flows.
+16
+
+===== PAGE 17 =====
+The hyper-parameter setting for network training remains the same as in the 2D case.
+The physical parameter-dependent network in Section 3.1 learns the invariant measure
+corresponding to eight different κ training values. Besides the input x and output f(x)
+are both in 3 dimensions, the network layout and training procedure are the same as in
+the 2D example.
+Fig. 6 shows the performance of the network interpolating training data from κ = 2−2
+to κ = 2−3.5. Fig. 7 displays network prediction at κ = 2−4. All the histograms here
+are 2D projections of the 3D histogram to the second and third dimensions. Results of
+the projection to other choices of two dimensions are similar and are not shown here for
+brevity.
+6 0.11 6 0.1 6 0.16 6 0.2
+0.1 0.09
+4 5 0 0 0 0 . . . . 0 0 0 0 6 7 8 9 4 5 0 0 0 . . . 0 0 0 6 7 8 4 5 0 0 0 . . . 1 1 1 2 4 4 5 0 0 0 0 . . . . 1 1 1 1 2 4 6 8
+3 0.05 3 0.05 3 0.08 3 0.1
+2 0 0 . . 0 0 3 4 2 0 0 . . 0 0 3 4 2 0 0 . . 0 0 4 6 2 0 0 . . 0 0 6 8
+1 0.02 1 0.02 1 1 0.04
+0.01 0.01 0.02 0.02
+0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(a) κ=2−2 (b) κ=2−2.5 (c) κ=2−3 (d) κ=2−3.5
+6 0.12 6 0.12 6 0.12 6 0.2
+5 0.1 5 0.1 5 0.1 5
+4 0.08 4 0.08 4 0.08 4 0.15
+3 0.06 3 0.06 3 0.06 3 0.1
+2 0.04 2 0.04 2 0.04 2
+0.05
+1 0.02 1 0.02 1 0.02 1
+0 0 0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(e) κ=2−2 (f) κ=2−2.5 (g) κ=2−3 (h) κ=2−3.5
+Figure6: Generatedinvariantmeasure(upperrow)andthecorrespondingtrainingdata(reference,lower
+row), viewed as projections to 2nd and 3rd dimensions in a 3D KPP front speed computation.
+5. Conclusions
+We developed a DeepParticle method to generate invariant measures of stochastic dynam-
+ical (interacting particle) systems by a physically parameterized DNN that minimizes the
+Wasserstein distance between the source and target distributions. Our method is very
+general in the sense that we do not require distributions to be in closed-form and the gen-
+eration map to be invertible. Thus, our method is fully data-driven and applicable in the
+fast computation of invariant measures of other interacting particle systems. During the
+training stage, we update network parameters based on a discretized Wasserstein distance
+defined on finite samples. We proposed an iterative divide-and-conquer algorithm that
+allows us to significantly reduce the computational cost in finding the optimal transition
+matrix in the Wasserstein distance. We carried out numerical experiments to demon-
+strate the performance of the proposed method. Numerical results show that our method
+is very efficient and helps accelerate the computation of invariant measures of interacting
+particle systems for KPP front speeds. In the future, we plan to apply the DeepParticle
+method to learn and generate invariant measures of other stochastic particle systems.
+17
+
+===== PAGE 18 =====
+6 0.3 6
+0.2
+5 0.25 5 0.18
+0.16
+4 0.2 4 0.14
+0.12
+3 0.15 3
+0.1
+0.08
+2 0.1 2
+0.06
+1 0.05 1 0.04
+0.02
+0 0 0 0
+0 1 2 3 4 5 6 0 1 2 3 4 5 6
+(a) Ground truth invariant measure (b) Predicted invariant measure
+0.45
+0.4
+0.35
+0.3
+0.25
+0.2
+0.15
+0.1
+0.05
+0 1 2 3 4 5
+steps 104
+ecnatsiD
+2W
+1.2
+1.1
+1
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+100 101 102 103 104
+generations
+(c) W2 training error vs. gradient descent
+steps: spikes with height ≈ 0.2 occur due to
+transition matrix γ re-optimized in response
+to mini-batching of input training data.
+lavgie
+(d) Acceleration: convergence to λ value
+∆t
+computed by Alg.3 with warm/cold start by
+DeepParticle prediction (red)/uniform distri-
+bution (blue).
+Figure7: DeepParticleprediction(viewedin2nd/3rddim,top)attestvalueκ=2−4ina3Dcomputation.
+The W2 distance minimization in c) shows fast (steps before 1.e4) and slow phases [38].
+18
+
+===== PAGE 19 =====
+CRediT authorship contribution statement
+Zhongjian Wang: Conceptualization, Programming, Methodology, Writing-Original
+draft preparation. Jack Xin: Conceptualization, Methodology, Writing-Reviewing and
+Editing. Zhiwen Zhang: Conceptualization, Writing-Reviewing and Editing.
+Declaration of competing interest
+The authors declare that they have no known competing financial interests or personal
+relationships that could have appeared to influence the work reported in this paper.
+Acknowledgements
+TheresearchofJXispartiallysupportedbyNSFgrantsDMS-1924548andDMS-1952644.
+TheresearchofZZissupportedbyHongKongRGCgrantprojects17300318and17307921,
+National Natural Science Foundation of China No. 12171406, Seed Funding Programme
+for Basic Research (HKU), and Basic Research Programme (JCYJ20180307151603959)
+of The Science, Technology and Innovation Commission of Shenzhen Municipality.
+References
+[1] G. Bao, X. Ye, Y Zang, and H. Zhou. Numerical solution of inverse problems by
+weak adversarial networks. Inverse Problems, 36(11):115003, 2020.
+[2] Y. Bar-Sinai, S. Hoyer, J. Hickey, and M. Brenner. Learning data-driven discretiza-
+tions of PDEs. Bulletin of the American Physical Society, 63, 2018.
+[3] M. Burger, L. Ruthotto, and S. Osher. Connections between deep learning and
+partial differential equations. European Journal of Applied Mathematics, 32(3):395–
+396, 2021.
+[4] Z. Cai, J. Chen, and M. Liu. Least-squares ReLU neural network (LSNN) method for
+linear advection-reaction equation. Journal of Computational Physics, page 110514,
+2021.
+[5] Z. Cai, J. Chen, M. Liu, and X. Liu. Deep least-squares methods: An unsupervised
+learning-basednumericalmethodforsolvingellipticPDEs. Journal of Computational
+Physics, 420:109707, 2020.
+[6] R. Carmona and M. Lauriere. Convergence analysis of machine learning algorithms
+for the numerical solution of mean field control and games: I – The ergodic case.
+arXiv:1907.05980, 13 July 2019.
+[7] R. Carmona and M. Lauriere. Convergence analysis of machine learning algorithms
+for the numerical solution of mean field control and games: II – The finite horizon
+case. arXiv:1908.01613, 5 August 2019.
+[8] W. Chen, Q. Wang, J. Hesthaven, and C. Zhang. Physics-informed machine learning
+forreduced-ordermodelingofnonlinearproblems. Journal of Computational Physics,
+446:110666, 2021.
+19
+
+===== PAGE 20 =====
+[9] S. Childress and A. Gilbert. Stretch, Twist, Fold: The Fast Dynamo. Lecture Notes
+in Physics Monographs, No. 37, Springer, 1995.
+[10] N. Cohen, O. Sharir, and A. Shashua. On the expressive power of deep learning: A
+tensor analysis. In Conference on Learning Theory, pages 698–728, 2016.
+[11] M. Cuturi. Sinkhorn distances: Lightspeed computation of optimal transport. Ad-
+vances in neural information processing systems, 26:2292–2300, 2013.
+[12] G. Cybenko. Approximation by superpositions of a sigmoidal function. Mathematics
+of control, signals and systems, 2(4):303–314, 1989.
+[13] W. E, J. Han, and A. Jentzen. Deep learning-based numerical methods for high-
+dimensional parabolic partial differential equations and backward stochastic differ-
+entialequations. Communications in Mathematics and Statistics, 5(4):349–380, 2017.
+[14] W. E and B. Yu. The deep Ritz method: A deep learning-based numerical algorithm
+for solving variational problems. Communications in Mathematics and Statistics,
+6(1):1–12, 2018.
+[15] S. Ellacott. Aspects of the numerical analysis of neural networks. Acta Numerica,
+3:145–202, 1994.
+[16] M. Freidlin. Functional Integration and Partial Differential Equations. Princeton
+Univ. Press, 1985.
+[17] D. Galloway and M. Proctor. Numerical calculations of fast dynamos in smooth
+velocity fields with realistic diffusion. Nature, 356(6371):691–693, 1992.
+[18] I. Goodfellow, Y. Bengio, A. Courville, and Y. Bengio. Deep learning, volume 1.
+MIT press Cambridge, 2016.
+[19] I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair,
+A. Courville, and Y. Bengio. Generative adversarial nets. Advances in neural infor-
+mation processing systems, 27, 2014.
+[20] J. Han, A. Jentzen, and W. E. Solving high-dimensional partial differential equations
+using deep learning. Proceedings of the National Academy of Sciences, 115(34):8505–
+8510, 2018.
+[21] J. He, L. Li, J. Xu, and C. Zheng. Relu deep neural networks and linear finite
+elements. Journal of Computational Mathematics, 38(3):502–527, 2020.
+[22] J. He and J. Xu. Mgnet: A unified framework of multigrid and convolutional neural
+network. Science China Mathematics, 62(7):1331–1354, 2019.
+[23] K. Hornik, M. Stinchcombe, and H. White. Multilayer feedforward networks are
+universal approximators. Neural networks, 2(5):359–366, 1989.
+[24] C. Kao, Y-Y Liu, and J. Xin. A Semi-Lagrangian Computation of Front Speeds
+of G-equation in ABC and Kolmogorov Flows with Estimation via Ballistic Orbits.
+arXiv:2012.11129, to appear in SIAM J. Multiscale Modeling and Simulation, 2021.
+20
+
+===== PAGE 21 =====
+[25] S. Karumuri, R. Tripathy, I. Bilionis, and J. Panchal. Simulator-free solution of
+high-dimensional stochastic elliptic partial differential equations using deep neural
+networks. Journal of Computational Physics, 404:109120, 2020.
+[26] Y. Khoo, J. Lu, and L. Ying. Solving parametric PDE problems with artificial neural
+networks. European Journal of Applied Mathematics, Special Issue 3: Connections
+between Deep Learning and Partial Differential Equations, 32:421–435, 2021.
+[27] I. Kobyzev, S. Prince, and M. Brubaker. Normalizing flows: An introduction and
+review of current methods. IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 2020.
+[28] A. Kolmogorov, I. Petrovsky, and N. Piskunov. Investigation of the equation of
+diffusion combined with increasing of the substance and its application to a biology
+problem. Bull. Moscow State Univ. Ser. A: Math. Mech, 1(6):1–25, 1937.
+[29] J.N. Kutz. Deep learning in fluid dynamics. Journal of Fluid Mechanics, 814(1-4),
+2017.
+[30] I. Lagaris, A. Likas, and D. Fotiadis. Artificial neural networks for solving ordinary
+and partial differential equations. IEEE Trans. Neural Netw., 9(5):987–1000, 1998.
+[31] Y. LeCun, Y. Bengio, and G. Hinton. Deep learning. Nature, 521(7553):436, 2015.
+[32] H. Lee. Neural algorithm for solving differential equations. Journal of Computational
+Physics, 91:110–131, 1990.
+[33] W. Li, P. Yin, and S. Osher. Computations of optimal transport distance with Fisher
+information regularization. Journal of Scientific Computing, 75(3):1581–1595, 2018.
+[34] Z. Li, N. Kovachki, K. Azizzadenesheli, B. Liu, K. Bhattacharya, A. Stuart, and
+A.Anandkumar. Fourierneuraloperatorforparametricpartialdifferentialequations.
+arXiv preprint arXiv:2010.08895, 2020.
+[35] A. Lin, S. Fung, W.Li, L. Nurbekyana, and S. Osher. Alternating the population
+and control neural networks to solve high-dimensional stochastic mean-field games.
+PNAS, 118(31), e2024713118, 2021.
+[36] Z. Long, Y. Lu, and B. Dong. PDE-Net 2.0: Learning PDEs from data with
+a numeric-symbolic hybrid deep network. Journal of Computational Physics,
+399:108925, 2019.
+[37] Z. Long, Y. Lu, X. Ma, and B. Dong. PDE-Net: Learning PDEs from data. Inter-
+national Conference on Machine Learning, pages 3208–3216, 2018.
+[38] Z. Long, P. Yin, and J. Xin. Global convergence and geometric characterization
+of slow to fast weight evolution in neural network training for classifying linearly
+non-separable data. Inverse Problems and Imaging, 15(1):41–62, 2021.
+[39] J. Lu, Z. Shen, H. Yang, and S. Zhang. Deep network approximation for smooth
+functions. SIAM Journal on Mathematical Analysis, 53(5):5465–5506, 2021.
+21
+
+===== PAGE 22 =====
+[40] L. Lu, P. Jin, and G. Karniadakis. Deeponet: Learning nonlinear operators for
+identifying differential equations based on the universal approximation theorem of
+operators. arXiv:1910.03193, 2019.
+[41] J. Lyu, Z. Wang, J. Xin, and Z. Zhang. A convergent interacting particle method
+and computation of KPP front speeds in chaotic flows. to appear in SIAM J. Numer.
+Anal., 2021.
+[42] J. Lyu, J. Xin, and Y. Yu. Computing residual diffusivity by adaptive basis learning
+via spectral method. Numerical Mathematics: Theory, Methods and Applications,
+10(2):351–372, 2017.
+[43] J. Lyu, J. Xin, and Y. Yu. Computing residual diffusivity by adaptive basis learning
+via super-resolution deep neural networks. In: H. A. Le Thi, et al (eds), Advanced
+Computational Methods for Knowledge Engineering. ICCSAMA 2019. Advances in
+Intelligent Systems and Computing, 1121:279–290, 2020.
+[44] A. Meade and A. Fernandez. The numerical solution of linear ordinary differential
+equationsbyfeedforwardneuralnetworks. Math. Comput. Model., 19(12):1–25, 1994.
+[45] H. Montanelli and Q. Du. New error bounds for deep ReLU networks using sparse
+grids. SIAM Journal on Mathematics of Data Science, 1(1):78–92, 2019.
+[46] J. Nolen, M. Rudd, and J. Xin. Existence of KPP fronts in spatially-temporally
+periodic advection and variational principle for propagation speeds. Dynamics of
+PDEs, 2(1):1–24, 2005.
+[47] G. Peyré and M. Cuturi. Computational optimal transport. Foundations and Trends
+in Machine Learning, 11(5-6):355–607, 2019.
+[48] A. Pinkus. Approximation theory of the MLP model in neural networks. Acta
+numerica, 8:143–195, 1999.
+[49] T. Qin, K. Wu, and D. Xiu. Data driven governing equations approximation using
+deep neural networks. Journal of Computational Physics, 395:620–635, 2019.
+[50] M. Raissi, P. Perdikaris, and G. Karniadakis. Multistep Neural Networks for Data-
+driven Discovery of Nonlinear Dynamical Systems. arXiv:1801.01236, 2018.
+[51] M. Raissi, P. Perdikaris, and G. Karniadakis. Physics-informed neural networks: A
+deeplearningframeworkforsolvingforwardandinverseproblemsinvolvingnonlinear
+partial differential equations. Journal of Computational Physics, 378:686–707, 2019.
+[52] S. Rudy, J.N. Kutz, and S. Brunton. Deep learning of dynamics and signal-noise
+decomposition with time-stepping constraints. Journal of Computational Physics,
+396:483–506, 2019.
+[53] L. Ruthotto, S. Osher, W. Li, L. Nurbekyan, and S. Fung. A machine learning frame-
+work for solving high-dimensional mean field game and mean field control problems.
+Proceedings of the National Academy of Sciences, 117(17):9183–9193, 2020.
+22
+
+===== PAGE 23 =====
+[54] A. Schrijver. Combinatorial optimization: polyhedra and efficiency, volume 24.
+Springer Science & Business Media, 2003.
+[55] C. Schwab and J. Zech. Deep Learning in High Dimension. Research Report, vol.
+2017, 2017.
+[56] L. Shen, J. Xin, and A. Zhou. Finite element computation of KPP front speeds in 3D
+cellular and ABC flows. Mathematical Modelling of Natural Phenomena, 8(3):182–
+197, 2013.
+[57] L. Shen, J. Xin, and A. Zhou. Finite element computation of KPP front speeds in
+cellular and cat’s eye flows. Journal of Scientific Computing, 55(2):455–470, 2013.
+[58] Z. Shen, H. Yang, and S. Zhang. Deep network with approximation error being re-
+ciprocal of width to power of square root of depth. Neural Computation, 33(4):1005–
+1036, 2021.
+[59] R. Sinkhorn. A relationship between arbitrary positive matrices and doubly stochas-
+tic matrices. The annals of mathematical statistics, 35(2):876–879, 1964.
+[60] J. Sirignano and K. Spiliopoulos. DGM: A deep learning algorithm for solving partial
+differential equations. Journal of Computational Physics, 375:1339–1364, 2018.
+[61] C. Villani. Topics in optimal transportation, volume 58. American Math. Soc., 2021.
+[62] Q.Wang, N.Ripamonti, andJ.Hesthaven. Recurrentneuralnetworkclosureofpara-
+metric POD-Galerkin reduced-order models based on the Mori-Zwanzig formalism.
+Journal of Computational Physics, 410:109402, 2020.
+[63] Y. Wang, S. Cheung, E. Chung, Y. Efendiev, and M. Wang. Deep multiscale model
+learning. Journal of Computational Physics, 406:109071, 2020.
+[64] Z. Wang and Z. Zhang. A mesh-free method for interface problems using the deep
+learning approach. Journal of Computational Physics, 400:108963, 2020.
+[65] S. Wright. Primal-dual interior-point methods. SIAM, 1997.
+[66] K. Wu and D. Xiu. Data-driven deep learning of partial differential equations in
+modal space. Journal of Computational Physics, page 109307, 2020.
+[67] J. Xin. An introduction to fronts in random media, volume 5. Springer Science &
+Business Media, 2009.
+[68] L. Yang, X. Meng, and G.E. Karniadakis. B-PINNS: Bayesian physics-informed
+neural networks for forward and inverse PDE problems with noisy data. J. Comp.
+Physics, 425:109913, 2021.
+[69] D. Yarotsky. Error bounds for approximations with deep ReLU networks. Neural
+Networks, 94:103–114, 2017.
+[70] G. Yoo and H. Owhadi. Deep regularization and direct training of the inner layers
+of neural networks with kernel flows. arXiv:2002.08335, 2020.
+23
+
+===== PAGE 24 =====
+[71] Y. Zang, G. Bao, X. Ye, and H. Zhou. Weak adversarial networks for high-
+dimensional partial differential equations. Journal of Computational Physics,
+411:109409, 2020.
+[72] Y. Zhu and N. Zabaras. Bayesian deep convolutional encoder-decoder networks
+for surrogate modeling and uncertainty quantification. Journal of Computational
+Physics, 366:415–447, 2018.
+[73] Y. Zhu, N. Zabaras, P. Koutsourelakis, and P. Perdikaris. Physics-constrained
+deeplearningforhigh-dimensionalsurrogatemodelinganduncertaintyquantification
+without labeled data. Journal of Computational Physics, 394:56–81, 2019.
+[74] P. Zu, L. Chen, and J. Xin. A computational study of residual KPP front speeds in
+time-periodic cellular flows in the small diffusion limit. Physica D, 311:37–44, 2015.
+24

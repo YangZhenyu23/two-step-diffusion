@@ -1,0 +1,517 @@
+===== PAGE 15 hits=['KPP Front'] =====
+4.2. 3D KS in Kolmogorov flow with Chaotic Streamlines
+In this experiment, we study our method for the classical parabolic-elliptic
+3D Keller-Segel system (or the reduced nonlinear and nonlocal?equation 13)
+in the presence of Kolmogorov flow with chaotic streamlines [35, 36]:
+v(x,y,z) =??
+ 
+sin(2?z),sin(2?x),sin(2?y)
+ T
+.(16)
+The data generation process is almost the same, except we usen dict=10
+amplitudes that areuniformly spacedon[10,100], defined by
+?k = 10 + k?1
+ndict?1 (100?10), k= 1,...,n dict.
+The simulation results are shown in Figure 4. At?= 110, an extrapolation
+point beyond the training grid??{10,...,100}, the reference projections
+in Figure 4 display the Kolmogorov-flow?induced anisotropy: narrow, high-
+density ridges aligned with coordinate directions in x-y and y-z, together
+with a more isotropic footprint in x-z. One?step Meanflow captures the
+gross concentration but remains over-smoothed, attenuating the ridge con-
+trast and slightly biasing the barycenter. The DP corrector (near-identity,
+mini-batch OT) sharpens the directional structures: ridges become thinner
+and more pronounced in x-y and y-z while the x-z slice regains the compact,
+near-circular core. Crucially, this improvement at?=110(extrapolation) in-
+dicates that our two-step pipeline generalizes robustly out of distribution
+while preserving the 1-NFE determinism of MF.
+4.3. KPP Front Speed Experiment
+Front propagation in fluid flows becomes a hot topic in the physical sciences
+[5]. The reaction-diffusion-advection equation with Kolmogorov-Petrovsky-
+Piskunov (KPP) nonlinearity is as follows [37]:
+ut +v(x)??u=??u+ru(1?u),(17)
+where?is diffusion constant,vis an incompressible velocity field , anduis
+the concentration of reactant. If the velocity field isT-periodic in space and
+time, the minimal front speed satisfies the variational formula [38]:
+c?(e) = inf
+?>0
+?(?)
+? (18)
+14
+
+===== PAGE 17 hits=[] =====
+which corresponds to the operator in Equation 19. The Feynman?Kac semi-
+group uses the potential function
+V?(x,t) =?? 2 +?v(x,t)?e 1.(22)
+With one forcing period normalized to?T= 1and each period discretized
+intor n = 2?log 2 ?t substeps of size?t= 1/r n, we first do the Euler?
+Maruyama propagation of (20), then weighting multiplicatively by
+wi
+j = exp
+ 
+V?(Xi
+j,tj)?t
+ 
+(23)
+and finally carrying out a multinomial resampling?{wi
+j}in each substep to
+realize the potential effects and control variance in particle evolution. The
+running estimators are
+b?T (?) =?+ 1
+T
+Tr nX
+t=1
+logwt,bc T (?) =b?T (?)/?,(24)
+where wj := 1
+M
+P
+iwi
+j. Meanwhile, let? n(?) =E[?(X n)Qn
+t=1wt]and
+?n =? n/?n(1)be the normalized empirical measure after resampling. Then
+?n ?? ?
+? and 1
+n log?n(1)??(?)asn? ?. Consequently, we approx-
+imate? ?
+? by running the Feynman?Kac (FK) particle system long enough
+and collecting the terminal cloud. In this setting, we start from the uniform
+distribution on[0,2?) 2 and uses a largeT= 4096.
+In this experiment, We study KPP front?speed estimation on the two?torus
+T2 = [0,2?) 2 under a time?periodic cellular flow. We fix(?,?) = (2.0,1.0)
+and discretize each forcing period torn = 256substeps (log2 ?t=?8). Each
+run usesM= 2?10 4 particles; we printbcT (?) =b?T (?)/?at dyadic gen-
+erationsT= 1,2,4,.... Two initializations are compared:warm(Meanflow
+with DP refinement; Meanflow samples from a Gaussian source with std??
+and a 6-block residual corrector on the torus refines it, both conditioned on
+?) andcold(Uniform on[0,2?) 2). Thesigmais defined as the diffusion
+constant?in 19 in this scenario. We use dyadic diffusion constant levels
+?= 2 ? with uniformly spaced exponents for training
+?tr
+k =?2?(k?1)?0.25, k= 1,...,8,(25)
+and testing:
+?te
+k =?2?(k?1)?0.25, k= 1,...,11.(26)
+with the two metrics:
+16
+
+===== PAGE 18 hits=['Figure 5'] =====
+1.Eigenvalue convergenceofbc T (?), as defined in Equation 24, versus the
+number of FK generationsT?{1,2,4,...};
+2.Invariant-measure accuracy:For each?, we quantify the invariant-
+measure error on the two-torus by
+E(?) =W 2
+ 
+??(?),??(?) 
+,(27)
+where??(?) and??(?) denote the empirical measures of the generated
+terminalparticlecloudandthelong-horizonFKreferenceparticlecloud
+onT 2 = [0,2?) 2 at diffusion level?, respectively. In practice, we
+evaluate (27) using aK?Khistogram discretization on[0,2?) 2 and
+computeW 2 with the periodic ground metric onT2.
+Figure 5:Empirical invariant measures onT 2 across diffusion constants.Rows
+correspond to?= 2 ?3.75 (top,within the training range) and?= 2 ?4 (bottom,extrapola-
+tion beyond training); columns show Meanflow (left), MF+DP (middle), and the resolved
+FK reference (right). Each panel is a72?72histogram on[0,2?) 2. The DP corrector
+contracts spurious mass and sharpens the anisotropic ridge, bringing the warm-start dis-
+tribution visibly closer to the reference at both?, including the extrapolation case.
+Figure 5 compares empirical invariant measures onT2 for two representative
+diffusion constants:?= 2 ?3.75 (within training) and?= 2?4 (extrapolation).
+17
+
+===== PAGE 19 hits=['Figure 6'] =====
+?log 2?Meanflow DP refinement
+2.00 0.04770.0138
+2.25 0.04760.0139
+2.50 0.05320.0124
+2.75 0.05920.0123
+3.00 0.06390.0106
+3.25 0.07170.0148
+3.50 0.08700.0200
+3.75 0.07730.0154
+4.00 0.10120.0216
+4.25 0.11950.0154
+4.50 0.11760.0456
+Figure 6:Left:W 2 (lower is better) between the empirical measure and the long-Tref-
+erence for MF and the DP refinement, evaluated at?= 2 ??.Right:The same num-
+bers plotted versus?log 2?; the green dashed line marks the end of thetrainingrange
+(?log 2?= 3.75), so points to the right areextrapolation. Across the entire grid, including
+the extrapolation regime, the DP refinement uniformly reduces error relative to MF and
+flattens the growth ofW2.
+Across both rows the MF+DP (middle) corrects the one?shot Meanflow bias
+(left) by contracting spurious mass near the central trough and sharpening
+the anisotropic ridge that aligns with the cellular advection; the resulting
+density closely matches the long?run FK reference (right). Notably, the same
+geometric improvement persists at?= 2?4, evidencing strong out?of?range
+generalization.
+Figure 6 summarizes the 2-Wasserstein distance on the torus between the
+empirical invariant measure and the long-Treference. Across the full grid,
+including extrapolation beyond the training range, the DP refinement con-
+sistently reducesW 2 relative to Meanflow (right panel). The Meanflow error
+increases noticeably past the training boundary at?log2?= 3.75, whereas
+MF+DP remains stable and significantly lower. For instance, at the extrap-
+olation point?log 2?= 4.25,W 2 decreases from0.11950(MF) to0.01539
+(MF+DP). The left table in Fig. 6 reports consistent improvements across
+all tested?, and the right plot visualizes the same trend, with the training
+range boundary marked by a dashed line.
+Figure7reportsbcT (?) =b?T (?)/?versusgenerationsTforthewarm(MF+DP),
+warm(MF only), and cold (uniform) starts. With DP refinement, the very
+first estimate (T= 1) is already almost identical to the long-run FK reference
+and remains close thereafter, indicating minimal transient bias and variance.
+The MF-only warm start begins slightly below the reference but converges
+within a few generations. In contrast, the cold start begins far from the limit
+18
+
+===== PAGE 20 hits=['Figure 7', 'KPP Front'] =====
+iterationMF-only init MF+DP init
+1 0.733899 0.761573
+2 0.763092 0.773892
+4 0.770337 0.788397
+8 0.795811 0.781912
+16 0.784826 0.785587
+32 0.787654 0.783146
+64 0.787575 0.775075
+128 0.783591 0.779001
+Figure 7: Eigenvalue convergence with warm and cold starts. The plot shows?cT (?) =
+??T (?)/?versus generationsT(log scale) for warm (MF-only), warm (MF+DP), and cold
+(uniform) initializations. The dashed line is the long-run FK reference. The left table
+reports the estimator at early iterationsT?{1,2,4,...,128}for the two warm starts.
+and requires roughly an order of magnitude more generations to catch up.
+Overall, DP refinement provides the strongest warm start: its initial eigen-
+value essentially equals the long-run FK reference, and it stabilizes fastest.
+4.4. 3D KPP Front Speed Experiment with time-dependent Kolmogorov flow
+In this section, we study our method on the 3D KPP equation:
+ut +v(x)??u=??u+ru(1?u),(28)
+with a three-dimensional time-dependent Kolmogorov flow velocity field:
+v(x,t) =
+ 
+sin(x3 + sin(2?t)),sin(x 1 + sin(2?t)),sin(x 2 + sin(2?t))
+ 
+(29)
+The setup parallels that of the 2D experiment. The spatial domain isT3 =
+[0,2?) 3, with the time period normalized toT= 1. We employ Euler?
+Maruyama integration with?t= 2 ?8 and perform FK propagation using
+2?10 4 particles per diffusion level. The diffusion constant?(identical to?)
+follows a dyadic grid?= 2??. Training levels are defined for?log2??3.75,
+and evaluation extends up to?log2?= 4.5to test out-of-range generaliza-
+tion. Furthermore, we compare three initialization modes, where the first
+is the Cold start, where we start from the uniform distribution onT3 and
+this case served as the reference group. Meanwhile, we tested the two warm
+start methods through Meanflow and our two-step diffusion pipeline, where
+we would like to test our model on the following two metrics:
+19
+
+===== PAGE 21 hits=['Figure 8'] =====
+Figure 8: Qualitative comparisons of x-y, x-z, y-z planes at?= 2?4.5 for the 3D KPP
+system in 3D time-dependent Kolmogorov flow. (a) Reference solution projected to three
+coordinate planes. (b) Predicted solution projected to the three coordinate planes by
+Meanflow (c) DP Refinement solution projects to the three coordinate planes.
+1.Eigenvalue convergenceofbc T (?), as defined in Equation 24, versus the
+number of FK generationsT?{1,2,4,...};
+2.Invariant-measure accuracy:For each?, we quantify the invariant-
+measure error by
+Exz(?) =W 2
+ 
+(?xz)#b?(?),(?xz)#b?(?) 
+,(30)
+wheretheprojectionoperator? xz :R 3?R 2 isdefinedas? xz(x,y,z) =
+(x,z), andb?(?) andb?(?) denote the empirical measures of the generated
+particle cloud and the FK reference particle cloud at parameter?,
+respectively.
+20
+
+===== PAGE 22 hits=['Figure 8', 'Figure 9', 'Figure 10'] =====
+?log 2?Meanflow DP refinement
+2.00 0.15910.0160
+2.25 0.12570.0230
+2.50 0.14420.0193
+2.75 0.16460.0280
+3.00 0.12500.0365
+3.25 0.11750.0314
+3.50 0.13420.0340
+3.75 0.12610.0253
+4.00 0.10490.0606
+4.25 0.13250.0282
+4.50 0.10990.0210
+Figure 9:Left:W 2 (Projection on the x-z plane) between the empirical measure and the
+long-Treference for MF and the DP refinement, evaluated at?= 2??.Right:The same
+numbers plotted versus?log2?; the green dashed line marks the end of thetrainingrange
+(?log 2?= 3.75), so points to the right areextrapolation. Across the entire grid, including
+the extrapolation regime, the DP refinement uniformly reduces error relative to MF and
+flattens the growth ofW2.
+iterationMF-only init MF+DP init
+1 0.566547 0.613531
+2 0.551988 0.610457
+4 0.546482 0.621819
+8 0.576172 0.599699
+16 0.597887 0.590171
+32 0.609560 0.614999
+64 0.609690 0.615682
+128 0.614481 0.613865
+Figure 10: Eigenvalue convergence with warm and cold starts. The plot shows?cT (?) =
+??T (?)/?versus generationsT(log scale) for warm (MF-only), warm (MF+DP), and cold
+(uniform) initializations. The dashed line is the long-run FK reference. The left table
+reports the estimator at early iterationsT?{1,2,4,...,128}for the two warm starts.
+For the invariant measures, Figure 8 shows triptych projections at?= 2?4.5
+for the FK reference (top row), Meanflow (middle), and DP-refined outputs
+(bottom). Across the x-y, x-z, y-z planes, Meanflow exhibits spurious mass
+and blurred anisotropic ridges, whereas DP refinement removes these arti-
+facts and sharpens the cellular alignment. In the x-y projection, DP restores
+the bifurcated high-density ridge; in x-z, it corrects the layer position and
+21
+
+===== PAGE 23 hits=['Figure 9'] =====
+suppresses over-diffusion; and in y-z, it aligns the curved ridge with the FK
+reference.
+Meanwhile, our pipeline achieves strong quantitative accuracy across diffu-
+sion levels. Figure 9 reports theW2 errors over?log 2??[2.0,4.5]. Within
+the training range, the DP refinement consistently improves over Meanflow.
+Beyond the training range, the method maintains stable extrapolation be-
+havior, with substantially lowerW2 than the MF baseline. As an example, at
+log2?= 4.50,W 2 decreases from0.10990(MF) to0.02098(DP), indicating
+effective out-of-range generalization.
+Last but not least, our model exhibits rapid eigenvalue convergence. Fig-
+ure 10 (and its accompanying table) reportsbcT (?)versus the number of FK
+generations. TheWarm (MF+DP)initialization is nearly unbiased already
+atT= 1and then remains essentially on the FK reference. TheWarm (MF-
+only)initialization begins below the reference but converges within roughly
+32generations, demonstrating the stronger and more stable warm start pro-
+vided by our two-step diffusion pipeline compared with Meanflow alone.
+5. Conclusion
+We introduced a Two-Step Diffusion framework for fast and reliable genera-
+tioninKeller?SegelchemotaxisandKolmogorov?Petrovsky?Piskunov(KPP)
+systems with background flows. As illustrated in Figure 1, our method sep-
+arates coarse global transport from fine local alignment: a Meanflow-style
+regressor as shown in Algorithm 1, trained via the MeanFlow identity, pro-
+vides a deterministic, 1-NFE initializer that moves particles close to the
+correct support, and a near-identity Deep Particle corrector, as shown in Al-
+gorithm 2 then minimizes a mini-batch 2-Wasserstein objective with exact
+EMD couplings. This coarse-to-fine design restores an explicit geometry-
+awareW 2 training signal where it is tractable, making high-dimensional OT
+optimization stable while preserving one-shot sampling.
+Across 3D Keller?Segel systems with both laminar and Kolmogorov flows,
+the two-stage pipeline consistently lowers empiricalW 2 (Figure 2)relative
+to Meanflow and sharpens anisotropic structure (Figure 3 and 4), with the
+largest gains in the singular-perturbation and extrapolation regimes. The
+Appendix further shows that these benefits strengthen in a 4D KS extension
+(Figure A.11), are robust under changes in mini-batch size and coupling re-
+fresh rate A.1, and persist when comparing with self-distilled IMM [39, 40]
+and regularized Sinkhorn solvers. In KPP front-speed experiments on both
+22
+
+===== PAGE 24 hits=['Figure 5', 'Figure 7'] =====
+2D and 3D time-dependent flows, the warm start yields invariant measures
+substantially closer to long-horizon Feynman?Kac references (Figure 5 and 8)
+and eigenvalue estimates that are nearly unbiased from the first generation
+(Figure 7 and 10), highlighting Two-Step Diffusion as a practical recipe for
+combining fast one-step flows with principled OT-based refinement in scien-
+tific machine learning.
+6. Acknowledgements
+ZW was partly supported by NTU SUG-023162-00001, MOE AcRF Tier 1
+Grant RG17/24. JX was partly supported by NSF grants DMS-2219904 and
+DMS-2309520, a Qualcomm Gift Award; and the Swedish Research Council
+grant no. 2021-06594 at the Institut Mittag-Leffler in Djursholm, Sweden,
+and the E. Schr?dinger Institute, Vienna, Austria, both during his stay in
+the Fall of 2025. ZZ was supported by the National Natural Science Foun-
+dation of China (Projects 92470103 and 12171406), the Hong Kong RGC
+grant (Projects 17304324 and 17300325), the Seed Funding Programme for
+Basic Research (HKU), the Outstanding Young Researcher Award of HKU
+(2020?21), and the Seed Funding for Strategic Interdisciplinary Research
+Scheme 2021/22 (HKU).
+Appendix A. Appendix
+This appendix provides additional experiments and analyses that comple-
+ment the main text. Section Appendix A.1 extends the Keller?Segel setup
+to a 4D laminar flow and shows that the advantage of our two-stage design
+becomes even more pronounced in higher dimensions. Section Appendix A.2
+presents an ablation over the DP mini-batch size and coupling refresh rate,
+demonstrating that our refinement is both efficient and robust to these hy-
+perparameters. Section Appendix A.3 compares Two-Step Diffusion with
+IMM-style self-distilled one-step baseline while Section Appendix A.4 con-
+trasts exact mini-batch EMD with entropically regularized Sinkhorn solvers.
+Appendix A.1. 4D Keller?Segel System Extensions
+To assess whether our two?stage pipeline scales beyond three spatial dimen-
+sions, we extend the Keller?Segel dynamics in (13) to a four?dimensional
+23
+
+===== PAGE 25 hits=[] =====
+state variablex= (x 1,x 2,x 3,x 4)?R 4. The density?(t,x)satisfies the same
+chemotactic PDE,
+?t?=???+?? x?(??x(K??)),
+with identical regularization and parameters as in the 3D laminar experiment
+in Section 4. The background velocity is now a 3D laminar profile embedded
+in four dimensions:
+v(x;?) =?
+ 
+e?(x2
+2+x2
+3+x2
+4),0,0,0
+ ?
+,(A.1)
+so that the advection acts purely alongx1 while the remaining coordinates
+provide cross?stream structure. The interacting?particle approximation of
+the PDE becomes
+dXj =? ?
+J
+X
+i?=j
+?K?(?Xi?Xj?)dt+v(X j;?)dt+
+p
+2?dWj,(A.2)
+which is the natural 4D analogue of the 3D scheme in Section 4. We imple-
+ment (A.2) exactly as in the 3D experiment, with the only modification that
+initialization is uniform on the 4D unit ball.
+Evaluation metric in 4D.Directly applying the histogram?based discreteW2
+used in 3D requires a244 grid (331,776 cells), and the resulting cost matrix
+would contain over10 11 entries, which exceeds our 480GB RAM budget
+even in single precision. Therefore, for each?we estimateW 2 usingtwo
+independent subsamplesof sizem= 2000drawn from the reference and
+generated ensembles. We compute the Earth?Mover?s Distance (EMD or 1-
+Wasserstein Distance) between these point clouds with a squared Euclidean
+cost. This modification affects only the evaluation metric; both Meanflow
+and DP training remain unchanged and identical to the 3D setting.
+Results.The left panel of Fig. A.11 summarizes the approximateW 2 val-
+ues for Meanflow and our DP refinement across??{20,...,200}. In the
+moderate?advection range (??100), both methods achieve errors around
+4?10 ?3, with DP consistently slightly better. As the system enters the
+singular?perturbation regime, Meanflow?s error grows sharply while DP re-
+mains nearly flat: at?= 120, Meanflow jumps to0.0572whereas DP stays
+at0.0036(about16?smaller); at?= 160?180, the gap grows to20??26?;
+even at?= 200, Meanflow reaches0.1526while DP remains0.0134. The
+24
+
+===== PAGE 26 hits=[] =====
+right panel of Fig. A.11 illustrates the blow?up of Meanflow beyond??120,
+contrasted with the stability of DP.
+These results show thatthe advantage of our two?stage design becomes even
+more pronounced in higher dimensions.Stage Iprovides a fast global
+displacement that moves particles near the correct 4D support;Stage II
+then performs a lightweight, geometry?aware OT refinement that remains
+tractable on small subsamples yet robustly prevents the high?dimensional
+misalignment suffered by the one?step generator. This behavior is consis-
+tent with the intuition established in the 3D analysis and further validates
+our claim that the ?coarse?to?fine? Meanflow+DP strategy is well suited for
+challenging high?dimensional transport problems.
+?Meanflow DP refinement
+20(?) 0.00380.0030
+40(?) 0.00400.0031
+60(?) 0.00400.0031
+80(?) 0.00390.0032
+100(?) 0.00440.0039
+120(?) 0.05720.0036
+140(?) 0.10110.0038
+160(?) 0.11290.0043
+180(?) 0.14310.0066
+200(?) 0.15260.0134
+Figure A.11: 4D Keller?Segel with laminar flow. Left: approximateW2 values for Mean-
+flow and DP refinement across?. Right:W 2 vs.?curves, showing Meanflow?s error
+rapidly increasing in the stiff advection regime while DP remains stable.
+Appendix A.2. Ablation Study: Batch Size and Coupling Refresh Rate
+To assess the efficiency?accuracy trade-offs in Stage-II Wasserstein refine-
+ment, we perform an ablation study over two key hyperparameters: the DP
+mini-batch sizeBdp and the coupling refresh period?renew. Table A.1 reports
+the resulting approximate Wasserstein-2 distances across??{20,...,200},
+along with wall-clock time and peak memory usage.
+Effect of DP mini-batch size.With?renew = 50fixed, varyingB dp from1500
+to3500results in only minor fluctuations in finalW2 values, where differences
+are typically on the order of10?3 and no configuration dominates uniformly.
+However, the computational cost scales nearly linearly with batch size, with
+total runtime increasing from893s at1500to more than3800s at3500,
+whilepeakmemoryremainsunchanged. Thus, asmallbatchsizesignificantly
+25
+
+===== PAGE 27 hits=[] =====
+accelerates training without sacrificing performance or introducing memory
+overhead. We therefore adoptBdp = 1500(bold column in Table A.1) as our
+default configuration.
+Effect of coupling refresh rate.Fixing the batch size to1500, we vary?renew?
+{5,25,50,100}. Very frequent refreshes (? renew = 5) provide only negli-
+gibleW 2 gains while being?4?slower, whereas overly sparse refreshes
+(?renew = 100) degrade accuracy, especially at larger?. The intermediate
+value? renew = 50achieves the best balance between stability and efficiency,
+reducing runtime to854s while attaining nearly the lowestW 2 across the
+sweep, with identical memory usage to all other settings. We therefore use
+?renew = 50(bold column in Table A.1) for all main experiments, as it offers
+a substantial reduction in runtime while preserving accuracy and memory
+consumption.
+Table A.1: DPW 2 under different batch sizes and coupling refresh rates. Bold columns
+indicate the configuration adopted in the main experiments.
+Batch size sweep (? renew = 50)
+? 15002000 2500 3000 3500
+20 0.00470.0039 0.0044 0.0039 0.0039
+40 0.00460.0038 0.0039 0.0040 0.0043
+60 0.00490.0045 0.0040 0.0043 0.0043
+80 0.00560.0042 0.0043 0.0047 0.0042
+100 0.00590.0054 0.0050 0.0048 0.0045
+120 0.00650.0053 0.0051 0.0056 0.0053
+140 0.00730.0053 0.0053 0.0058 0.0056
+160 0.00820.0064 0.0060 0.0058 0.0059
+180 0.01400.0100 0.0095 0.0100 0.0102
+200 0.02140.0166 0.0171 0.0172 0.0190
+time (s) 893.21395.0 2089.1 2892.9 3830.4
+Coupling refresh sweep (batch size= 1500)
+5 2550100
+0.0038 0.00390.00470.0081
+0.0043 0.00450.00460.0073
+0.0045 0.00400.00490.0090
+0.0046 0.00450.00560.0105
+0.0049 0.00500.00590.0115
+0.0054 0.00550.00650.0125
+0.0052 0.00580.00730.0111
+0.0064 0.00640.00820.0133
+0.0102 0.00940.01400.0169
+0.0163 0.01600.02140.0202
+3300.4 1109.5893.2771.5
+Appendix A.3. Comparison with other baselines
+IMM (self distillation) [39].We implement an inductive moment matching
+(IMM) style one-step baseline adapted to the KS setting and closely related
+to the self-distilled flow-map view and IMM framework [39, 40]. For each
+physical parameter?on the same 8-point logarithmic grid used by Mean-
+flow, we generate paired endpoints(x 0,x 1)by simulating the KS dynam-
+ics from the shared initial configurationx 0 to the terminal statex 1. The
+model is a compact MLP (width 64, depth 4) that shares both architecture
+and?-conditioning with the Meanflow network and parameterizes a time-
+conditioned flow map
+f?(x,t?s,log 10?) =x+ (s?t)g ?(x,t,s,log 10?),(A.3)
+26
+
+===== PAGE 28 hits=[] =====
+so that a single forward pass predicts the displacement from any source time
+tto any earlier target times. During training we sample a mini-batch of KS
+pairs for a randomly chosen?and draw nested times0?s < r < t?1.
+We define a linear path between data and prior,xt = (1?t)x 1 +tx 0 and
+xr = (1?r)x 1 +rx 0, and enforce temporal consistency by matching the
+distributions of the ?big-step? mapf?(xt,t?s)and the ?small-step? map
+f?(xr,r?s). These two sets of samples are partitioned into groups and
+compared using a Laplacian-kernel MMD loss whose bandwidth scales with
+the step size|t?s|, yielding the IMM-style objective
+LIMM(?) =E ?,(x0,x1),s<r<t
+h
+MMD2 
+f?(xt,t?s),f ?(xr,r?s)
+ i
+.(A.4)
+Gradients flow only through the big-step branch while the midpoint branch
+is treated as a frozen teacher, implementing a self-distillation scheme without
+an external diffusion teacher. All hyperparameters are kept identical to the
+Meanflow stage to ensure a fair comparison.
+Experiment analysis..Table A.2 and Figure A.12 compare Meanflow, IMM
+(self distillation), and our Two-step method (DP refinement) across??
+{20,...,200}using the approximate 2-Wasserstein metricW 2. Across the
+entire range, DP refinement achieves the lowest error, demonstrating that
+an additional refinement stage on top of a one-step proposal provides a
+consistent and effective correction. In the interpolation/moderate regime
+(??100), all methods are reasonably accurate, but DP refinement already
+delivers a clear margin (e.g.,W2 = 0.0047at?= 20versus0.0084/0.0089
+for Meanflow/IMM, and0.0059at?= 100versus0.0132/0.0115). As?
+increases into the more challenging regime (notably beyond the?= 150
+marker in Figure A.12), the gap widens substantially: Meanflow?s error grows
+rapidly and IMM begins to drift, while DP refinement remains stable and
+significantly lower (e.g.,0.0082at?= 160and0.0214at?= 200, compared
+to0.0145/0.0897for IMM and0.0403/0.1970for Meanflow). Figures A.13
+and A.14 corroborate these quantitative trends: at?= 20, DP refinement
+yields the sharpest and most symmetric match to the KS reference across pro-
+jections, while at?= 160it largely eliminates the mass shift and anisotropy
+visible in one-step baselines, preserving both the core concentration and the
+shape of the support. Overall, these results highlight the advantage of our
+two-step design: a refinement step that markedly improves accuracy and,
+crucially, strengthens extrapolation robustness.
+27

@@ -1,0 +1,208 @@
+\documentclass[11pt]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\title{Two-Step Diffusion for KPP Equations: Sections 4.3 and 4.4}
+\author{KPP Code Reproduction}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{KPP Front Speed Experiment on \(T^2\)}
+
+This section follows the reference paper's Section~4.3. The goal is to
+estimate the front speed of the KPP equation in a two-dimensional,
+time-periodic cellular flow and to generate particle clouds that resemble the
+long-horizon invariant measure of the underlying Feynman--Kac particle
+system.
+
+\subsection{Problem Setting and Feynman--Kac Particle System}
+
+The reaction--diffusion--advection equation is
+
+\begin{equation}
+u_t+v(x)\cdot\nabla u=\kappa\Delta u+r u(1-u).
+\end{equation}
+
+Here \(\kappa\) is the diffusion constant, \(v\) is the prescribed velocity
+field, and \(u\) is the reactant concentration. The minimal front speed along
+a direction \(e\) is written as
+
+\begin{equation}
+c^*(e)=\inf_{\lambda>0}\frac{\mu(\lambda)}{\lambda},
+\end{equation}
+
+where \(\mu(\lambda)\) is the principal eigenvalue of a twisted parabolic
+operator. For a fixed \(\lambda\), the corresponding twisted diffusion on
+\(T^2=[0,2\pi)^2\) is
+
+\begin{equation}
+dX_t=\left(2\kappa\lambda e_1+v(X_t,t)\right)dt+\sqrt{2\kappa}\,dW_t.
+\end{equation}
+
+The cellular velocity field is
+
+\begin{equation}
+v(x,t)=\left(-\cos x_2-\theta\cos(2\pi t)\sin x_1,\,
+\cos x_1+\theta\cos(2\pi t)\sin x_2\right).
+\end{equation}
+
+The Feynman--Kac weights use the potential
+
+\begin{equation}
+V_\lambda(x,t)=\kappa\lambda^2+\lambda v(x,t)\cdot e_1.
+\end{equation}
+
+This particle representation provides the reference invariant measures used
+for training and evaluation.
+
+\subsection{Experimental Setup}
+
+The 2D experiment uses the parameters listed in Table~\ref{tab:2d_setup}.
+
+\begin{table}[htbp]
+\centering
+\caption{2D KPP experimental parameters.}
+\label{tab:2d_setup}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+Domain & \(T^2=[0,2\pi)^2\) \\
+\(\lambda\) & \(2.0\) \\
+\(\theta\) & \(1.0\) \\
+Time step \(dt\) & \(2^{-8}\) \\
+Substeps per period \(r_n\) & \(256\) \\
+Particles per level \(M\) & \(2\times 10^4\) \\
+Long-horizon generations \(T\) & \(4096\) \\
+Cold start & uniform on \(T^2\) \\
+Training \(\log_2\sigma\) & \(-2.00,\ldots,-3.75\) \\
+Evaluation \(\log_2\sigma\) & \(-2.00,\ldots,-4.50\) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three initialization modes are compared: cold start, MeanFlow warm start, and
+MeanFlow plus DP warm start. Two evaluation metrics are used. The first is
+eigenvalue convergence of \(\hat c_T(\lambda)\) for
+\(T=1,2,4,\ldots\). The second is the invariant-measure \(W_2\) on the torus.
+In practice, the invariant-measure error is evaluated with a \(72\times 72\)
+histogram and the periodic ground metric.
+
+\subsection{Preliminary Results}
+
+Table~\ref{tab:2d} reports current \(W_2\) values. The two-stage pipeline is
+end-to-end functional. The DP stage reduces the error in several diffusion
+regimes, but the current MeanFlow baseline is still higher than the reference
+paper baseline.
+
+\begin{table}[htbp]
+\centering
+\caption{2D KPP preliminary \(W_2\) results.}
+\label{tab:2d}
+\begin{tabular}{cccc}
+\toprule
+\(-\log_2\sigma\) & cold & MeanFlow & MF+DP \\
+\midrule
+2.00 & 1.054 & 0.256 & 0.123 \\
+2.50 & 1.090 & 0.234 & 0.112 \\
+3.00 & 1.114 & 0.221 & 0.125 \\
+4.00 & 1.150 & 0.238 & 0.195 \\
+4.50 & 1.172 & 0.236 & 0.261 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Update interface.}
+Replace these rows with the final \texttt{metrics.json} values after the
+current 2D training completes.
+
+\section{3D KPP Front Speed Experiment with Time-Dependent Kolmogorov Flow}
+
+This section follows the reference paper's Section~4.4. The experiment extends
+the two-stage approach to a three-dimensional, time-dependent Kolmogorov flow.
+
+\subsection{Problem Setting}
+
+The governing equation is the same KPP equation, but the spatial domain is
+\(T^3=[0,2\pi)^3\). The velocity field is
+
+\begin{equation}
+v(x,t)=\left(
+\sin(x_3+\sin(2\pi t)),
+\sin(x_1+\sin(2\pi t)),
+\sin(x_2+\sin(2\pi t))
+\right).
+\end{equation}
+
+This flow is divergence-free and generates more complex anisotropic invariant
+measures than the 2D cellular flow.
+
+\subsection{Experimental Setup}
+
+Table~\ref{tab:3d_setup} summarizes the 3D parameters. The discretization is
+the same as in the 2D experiment.
+
+\begin{table}[htbp]
+\centering
+\caption{3D KPP experimental parameters.}
+\label{tab:3d_setup}
+\begin{tabular}{lc}
+\toprule
+Parameter & Value \\
+\midrule
+Domain & \(T^3=[0,2\pi)^3\) \\
+\(\lambda\) & \(2.0\) \\
+Time step \(dt\) & \(2^{-8}\) \\
+Substeps per period \(r_n\) & \(256\) \\
+Particles per level \(M\) & \(2\times 10^4\) \\
+Long-horizon generations \(T\) & \(4096\) \\
+Training \(\log_2\sigma\) & \(-2.00,\ldots,-3.75\) \\
+Evaluation \(\log_2\sigma\) & \(-2.00,\ldots,-4.50\) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The invariant-measure error is computed on the \(x\)-\(z\) projection:
+
+\begin{equation}
+E_{xz}(\sigma)=W_2\left((\Pi_{xz})_\#\hat\mu(\sigma),
+(\Pi_{xz})_\#\hat\nu(\sigma)\right),
+\end{equation}
+
+where \(\Pi_{xz}(x,y,z)=(x,z)\). Eigenvalue convergence is also reported for
+warm and cold initializations.
+
+\subsection{Preliminary Results}
+
+Table~\ref{tab:3d} reports representative current \(W_2\) values. The 3D
+MeanFlow baseline is closer to the paper than the 2D baseline, but the DP
+improvement remains modest.
+
+\begin{table}[htbp]
+\centering
+\caption{3D KPP preliminary \(W_2\) results.}
+\label{tab:3d}
+\begin{tabular}{cccc}
+\toprule
+\(-\log_2\sigma\) & cold & MeanFlow & MF+DP \\
+\midrule
+2.00 & 0.889 & 0.151 & 0.150 \\
+2.50 & 0.933 & 0.136 & 0.135 \\
+3.00 & 0.922 & 0.131 & 0.129 \\
+4.00 & 0.957 & 0.133 & 0.132 \\
+4.50 & 0.956 & 0.153 & 0.153 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Update interface.}
+After full 3D training, replace these values and record the actual seed from
+\texttt{actual\_seed.json}.
+
+\end{document}

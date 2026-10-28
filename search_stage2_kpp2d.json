@@ -1,0 +1,74 @@
+[
+  {
+    "exp": "kpp2d",
+    "alpha": 0.2,
+    "lambda_res": 0.001,
+    "val_w2": 0.2865833772938065
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.2,
+    "lambda_res": 0.005,
+    "val_w2": 0.2542374221163567
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.2,
+    "lambda_res": 0.01,
+    "val_w2": 0.2685869692407358
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.2,
+    "lambda_res": 0.05,
+    "val_w2": 0.29520369935811724
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.35,
+    "lambda_res": 0.001,
+    "val_w2": 0.275184074623791
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.35,
+    "lambda_res": 0.005,
+    "val_w2": 0.25777811285504376
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.35,
+    "lambda_res": 0.01,
+    "val_w2": 0.2689639846854234
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.35,
+    "lambda_res": 0.05,
+    "val_w2": 0.2961763366441098
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.5,
+    "lambda_res": 0.001,
+    "val_w2": 0.2828684930894222
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.5,
+    "lambda_res": 0.005,
+    "val_w2": 0.2573008461995413
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.5,
+    "lambda_res": 0.01,
+    "val_w2": 0.26838437688499
+  },
+  {
+    "exp": "kpp2d",
+    "alpha": 0.5,
+    "lambda_res": 0.05,
+    "val_w2": 0.2951772875430775
+  }
+]

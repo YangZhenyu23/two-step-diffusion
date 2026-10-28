@@ -241,7 +241,7 @@ def kpp3d_fk(log2sigma: float, cfg: FK3DConfig,
             X %= TWO_PI
 
             # ---- fitness (Eq.22-23)，在移动后的位置上求值 -------------------
-            logw += (v_const + lam * np.sin(X[:, 2] + ph)) * dt
+            logw += (v_const - lam * np.sin(X[:, 2] + ph)) * dt
 
             # ---- selection --------------------------------------------------
             if (j + 1) % resample_every == 0:
